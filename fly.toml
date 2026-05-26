@@ -1,0 +1,26 @@
+# Fly.io 部署配置
+app = "prompttoplay"
+primary_region = "hkg"  # 香港节点，国内访问最快
+
+[build]
+  builder = "heroku/buildpacks:20"
+
+[env]
+  PORT = "8080"
+  DEV_MODE = "false"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[mounts]
+  source = "prompttoplay_data"
+  destination = "/data"
