@@ -14,7 +14,7 @@ primary_region = "hkg"  # 香港节点，国内访问最快
   force_https = true
   auto_stop_machines = true
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0  # 免费额度下改为0，无访问时不运行
 
 [[vm]]
   memory = "256mb"
