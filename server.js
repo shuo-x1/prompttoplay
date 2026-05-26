@@ -32,11 +32,25 @@ app.use('/api', gameRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api', shareRoutes);
 
-initDb((err) => {
+initDb(async (err) => {
   if (err) {
     console.error('Failed to initialize database:', err);
     process.exit(1);
   }
+
+  // 自动 seed：如果数据库中没有游戏，自动插入演示游戏
+  const { all } = require('./config/db');
+  const existingGames = all('SELECT COUNT(*) as count FROM games');
+  if (existingGames[0].count === 0) {
+    console.log('No games found, seeding demo games...');
+    try {
+      const { seedGames } = require('./scripts/seed-games');
+      seedGames();
+    } catch (seedErr) {
+      console.error('Seed failed (non-fatal):', seedErr.message);
+    }
+  }
+
   app.listen(PORT, () => {
     console.log(`PromptToPlay server running on http://localhost:${PORT}`);
   });

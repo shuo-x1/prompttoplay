@@ -2,12 +2,13 @@
  * Demo Games Seeder
  * 为每个分类创建演示游戏（纯 HTML5 Canvas）
  * 运行: node scripts/seed-games.js
+ * 也可被 server.js require() 自动调用（DB 已初始化时）
  */
 
 require('dotenv').config();
 const path = require('path');
 
-const { initDb, run, all, saveDb } = require('../config/db');
+const { initDb, run, all, getDb, saveDb } = require('../config/db');
 
 // ============================================
 // 游戏模板
@@ -139,14 +140,16 @@ const DEMO_GAMES = [
 // 数据库操作
 // ============================================
 
-initDb(() => {
+// seed 函数：可被 server.js 直接调用，也可独立运行
+function seedGames(done) {
   console.log(`准备插入 ${DEMO_GAMES.length} 个演示游戏...`);
 
   // Check if demo games already exist
   const existing = all("SELECT COUNT(*) as cnt FROM games WHERE user_id = 0");
   if (existing[0] && existing[0].cnt > 0) {
-    console.log('演示游戏已存在，跳过。如需重新生成，请先手动清除 user_id=0 的记录。');
-    process.exit(0);
+    console.log('演示游戏已存在，跳过。');
+    if (done) done();
+    return;
   }
 
   let inserted = 0;
@@ -166,6 +169,15 @@ initDb(() => {
     }
   });
 
-  console.log(`\n完成！成功插入 ${inserted}/${DEMO_GAMES.length} 个演示游戏。`);
-  process.exit(0);
-});
+  console.log(`完成！成功插入 ${inserted}/${DEMO_GAMES.length} 个演示游戏。`);
+  if (done) done();
+}
+
+// 独立运行时：初始化 DB 然后 seed
+if (require.main === module) {
+  initDb(() => {
+    seedGames(() => process.exit(0));
+  });
+}
+
+module.exports = { seedGames };
