@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>个人中心 - PromptToPlay</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="logo">PromptToPlay</a>
+    <div class="nav-links">
+      <a href="hall.html">游戏大厅</a>
+      <a href="profile.html" class="active">个人中心</a>
+      <span id="credits-badge" class="credits-badge" style="display:none;" onclick="showCreditShop()">🪙 <span id="credits-count">0</span></span>
+      <a href="javascript:void(0)" id="nav-recharge" class="nav-recharge" onclick="showCreditShop()" style="display:none;">💰 充值</a>
+      <button onclick="logout()" id="nav-logout">退出</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section id="profile-loading">加载中...</section>
+
+    <section id="profile-content" style="display:none;">
+      <div class="profile-header">
+        <div class="profile-plan">
+          <h1 id="profile-email"></h1>
+          <span class="plan-badge" id="plan-badge"></span>
+        </div>
+        <div class="profile-actions">
+          <button id="upgrade-btn" class="btn btn-primary" style="display:none;">升级到 Pro</button>
+          <button onclick="showCreditShop()" class="btn btn-primary">💰 积分商城</button>
+          <button onclick="logout()" class="btn btn-outline">退出</button>
+        </div>
+      </div>
+
+      <div class="quota-section">
+        <h2>📊 配额信息</h2>
+        <div class="quota-cards">
+          <div class="quota-card">
+            <span class="quota-number" id="daily-quota">0</span>
+            <span class="quota-label">今日剩余</span>
+          </div>
+          <div class="quota-card">
+            <span class="quota-number" id="extra-quota">0</span>
+            <span class="quota-label">额外次数</span>
+          </div>
+          <div class="quota-card">
+            <span class="quota-number" id="total-quota">0</span>
+            <span class="quota-label">总剩余</span>
+          </div>
+          <div class="quota-card credits-card">
+            <span class="quota-number" id="credits-display" style="color:#7c3aed;">0</span>
+            <span class="quota-label">🪙 我的积分</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-section">
+        <h2>📈 数据统计</h2>
+        <div class="stats-cards" id="stats-cards">
+          <div class="stat-card"><span id="stat-games">-</span><label>创建游戏</label></div>
+          <div class="stat-card"><span id="stat-plays">-</span><label>总游玩次数</label></div>
+          <div class="stat-card"><span id="stat-remixes">-</span><label>被改编次数</label></div>
+          <div class="stat-card"><span id="stat-invited">-</span><label>邀请用户</label></div>
+        </div>
+      </div>
+
+      <div class="invite-section">
+        <h2>🔗 邀请好友</h2>
+        <p>分享你的邀请链接。当好友创建第一个游戏时，你将获得 +1 次额外生成机会！</p>
+        <div class="invite-link-box">
+          <code id="invite-link">加载中...</code>
+          <button id="copy-invite-btn" class="btn btn-secondary">复制</button>
+        </div>
+        <p class="invite-code">你的邀请码: <strong id="invite-code-display"></strong></p>
+      </div>
+
+      <div class="my-games-section">
+        <h2>🎯 我的作品</h2>
+        <div class="my-games-grid" id="my-games-grid"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay" style="display:none;">
+    <div class="modal" id="modal-content"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    const planNames = { free: '免费版', pro: 'Pro', enterprise: '企业版' };
+    const categoryNames = { action:'动作', puzzle:'益智', shooting:'射击', sports:'体育', simulation:'模拟', other:'其他' };
+
+    async function loadProfile() {
+      if (!checkAuth()) { window.location.href = 'auth.html'; return; }
+
+      try {
+        const [profileData, statsData, gamesData] = await Promise.all([
+          apiCall('/api/user/me'),
+          apiCall('/api/user/stats'),
+          apiCall('/api/user/games')
+        ]);
+
+        document.getElementById('profile-loading').style.display = 'none';
+        document.getElementById('profile-content').style.display = 'block';
+
+        const u = profileData.user;
+        document.getElementById('profile-email').textContent = u.email;
+        const badge = document.getElementById('plan-badge');
+        badge.textContent = planNames[u.plan] || u.plan;
+        badge.className = `plan-badge plan-${u.plan}`;
+
+        document.getElementById('daily-quota').textContent = u.quota.dailyRemaining;
+        document.getElementById('extra-quota').textContent = u.quota.extra;
+        document.getElementById('total-quota').textContent = u.quota.total;
+        document.getElementById('credits-display').textContent = u.credits || 0;
+
+        // Credits badge and recharge button
+        const creditsBadge = document.getElementById('credits-badge');
+        const creditsCount = document.getElementById('credits-count');
+        const rechargeBtn = document.getElementById('nav-recharge');
+        if (creditsBadge) creditsBadge.style.display = 'inline';
+        if (creditsCount) creditsCount.textContent = u.credits || 0;
+        if (rechargeBtn) rechargeBtn.style.display = 'inline';
+
+        document.getElementById('stat-games').textContent = statsData.total_games;
+        document.getElementById('stat-plays').textContent = statsData.total_plays;
+        document.getElementById('stat-remixes').textContent = statsData.total_remixes;
+        document.getElementById('stat-invited').textContent = statsData.invited_users_count;
+
+        const inviteUrl = `${window.location.origin}/auth.html?invite=${u.invitation_code}`;
+        document.getElementById('invite-link').textContent = inviteUrl;
+        document.getElementById('invite-code-display').textContent = u.invitation_code;
+
+        if (u.plan === 'free') {
+          document.getElementById('upgrade-btn').style.display = 'inline-block';
+        }
+
+        renderMyGames(gamesData.games);
+      } catch (err) {
+        if (err.status === 401) {
+          localStorage.removeItem('ptp_token');
+          window.location.href = 'auth.html';
+        }
+      }
+    }
+
+    function renderMyGames(games) {
+      const grid = document.getElementById('my-games-grid');
+      if (!games || games.length === 0) {
+        grid.innerHTML = '<p class="empty-text">你还没有创建任何游戏。<a href="/">现在创建一个吧！</a></p>';
+        return;
+      }
+      grid.innerHTML = games.map(game => `
+        <div class="my-game-item">
+          <div class="my-game-info">
+            <strong>${escapeHtml(game.title || '未命名游戏')}</strong>
+            <span class="category-badge">${categoryNames[game.category] || game.category}</span>
+            <span class="plays">🎮 ${game.plays || 0} 次</span>
+          </div>
+          <a href="game.html?id=${game.id}" class="btn btn-small">游玩</a>
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    document.getElementById('copy-invite-btn').addEventListener('click', () => {
+      const link = document.getElementById('invite-link').textContent;
+      navigator.clipboard.writeText(link).then(() => {
+        const btn = document.getElementById('copy-invite-btn');
+        btn.textContent = '已复制!';
+        setTimeout(() => { btn.textContent = '复制'; }, 2000);
+      });
+    });
+
+    document.getElementById('upgrade-btn').addEventListener('click', () => {
+      showCreditShop();
+    });
+
+    loadProfile();
+  </script>
+</body>
+</html>

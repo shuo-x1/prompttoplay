@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游玩游戏 - PromptToPlay</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="logo">PromptToPlay</a>
+    <div class="nav-links">
+      <a href="hall.html">游戏大厅</a>
+      <a href="profile.html" id="nav-profile">个人中心</a>
+      <span id="credits-badge" class="credits-badge" style="display:none;" onclick="showCreditShop()">🪙 <span id="credits-count">0</span></span>
+      <a href="javascript:void(0)" id="nav-recharge" class="nav-recharge" onclick="showCreditShop()" style="display:none;">💰 充值</a>
+      <a href="auth.html" id="nav-login">登录</a>
+      <button onclick="logout()" id="nav-logout" style="display:none;">退出</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section id="game-detail">
+      <div id="game-loading">正在加载游戏...</div>
+      <div id="game-error" style="display:none;">游戏未找到</div>
+      <div id="game-content" style="display:none;">
+        <div class="game-header">
+          <div class="game-info">
+            <h1 id="game-title"></h1>
+            <span class="category-badge" id="game-category"></span>
+            <span id="game-plays"></span>
+          </div>
+          <div class="game-actions">
+            <button id="remix-btn" class="btn btn-primary">🔄 二次创作</button>
+            <button id="share-btn" class="btn btn-outline">📤 分享</button>
+            <button id="remove-watermark-btn" class="btn btn-outline" style="display:none;">去除水印 (1 积分)</button>
+          </div>
+        </div>
+        <div class="remix-form" id="remix-form" style="display:none;">
+          <textarea id="remix-prompt" placeholder="描述你想要的修改方式..." rows="2"></textarea>
+          <button id="remix-submit" class="btn btn-secondary">生成改编版</button>
+          <button id="remix-cancel" class="btn btn-text">取消</button>
+        </div>
+        <div class="game-frame-container">
+          <iframe id="game-iframe" sandbox="allow-scripts allow-same-origin" style="width:100%;height:600px;border:none;border-radius:8px;"></iframe>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay" style="display:none;">
+    <div class="modal" id="modal-content"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    let gameData = null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const gameId = urlParams.get('id');
+    const categoryNames = { action:'动作', puzzle:'益智', shooting:'射击', sports:'体育', simulation:'模拟', other:'其他' };
+
+    function updateNav() {
+      const token = localStorage.getItem('ptp_token');
+      document.getElementById('nav-login').style.display = token ? 'none' : 'inline';
+      document.getElementById('nav-logout').style.display = token ? 'inline' : 'none';
+    }
+
+    async function loadGame() {
+      if (!gameId) {
+        document.getElementById('game-loading').style.display = 'none';
+        document.getElementById('game-error').style.display = 'block';
+        document.getElementById('game-error').textContent = '未提供游戏 ID';
+        return;
+      }
+
+      try {
+        gameData = await apiCall(`/api/games/${gameId}`);
+        renderGame(gameData);
+      } catch (err) {
+        document.getElementById('game-loading').style.display = 'none';
+        document.getElementById('game-error').style.display = 'block';
+      }
+    }
+
+    function renderGame(game) {
+      document.getElementById('game-loading').style.display = 'none';
+      document.getElementById('game-content').style.display = 'block';
+      document.getElementById('game-title').textContent = game.title || '未命名游戏';
+      document.getElementById('game-category').textContent = categoryNames[game.category] || game.category;
+      document.getElementById('game-plays').textContent = `🎮 ${game.plays || 0} 次游玩`;
+      document.getElementById('game-iframe').srcdoc = game.html_code;
+      window._currentGameId = game.id;
+      updateActionButtons(game);
+    }
+
+    async function updateActionButtons(game) {
+      const token = localStorage.getItem('ptp_token');
+      if (!token) return;
+      try {
+        const userData = await apiCall('/api/user/me');
+        const isPro = userData.user.plan === 'pro' || userData.user.plan === 'enterprise';
+        const isOwner = userData.user.id === game.user_id;
+        const credits = userData.user.credits || 0;
+        document.getElementById('remove-watermark-btn').style.display = (!isPro && isOwner && !game.watermark_removed) ? 'inline-block' : 'none';
+
+        // Update credits badge and recharge button
+        const badge = document.getElementById('credits-badge');
+        const count = document.getElementById('credits-count');
+        const recharge = document.getElementById('nav-recharge');
+        if (badge) badge.style.display = 'inline';
+        if (count) count.textContent = credits;
+        if (recharge) recharge.style.display = 'inline';
+      } catch (e) { /* ignore */ }
+    }
+
+    document.getElementById('remix-btn').addEventListener('click', () => {
+      if (!checkAuth()) { window.location.href = 'auth.html'; return; }
+      document.getElementById('remix-form').style.display = 'block';
+    });
+
+    document.getElementById('remix-cancel').addEventListener('click', () => {
+      document.getElementById('remix-form').style.display = 'none';
+      document.getElementById('remix-prompt').value = '';
+    });
+
+    document.getElementById('remix-submit').addEventListener('click', async () => {
+      const prompt = document.getElementById('remix-prompt').value;
+      if (!prompt) return;
+      const btn = document.getElementById('remix-submit');
+      btn.disabled = true; btn.textContent = '正在生成...';
+      try {
+        const data = await apiCall(`/api/games/${gameId}/remix`, 'POST', { prompt });
+        window.location.href = `game.html?id=${data.game_id}`;
+      } catch (err) {
+        if (err.status === 429) showQuotaModal();
+        else if (err.status === 500 && err.data && err.data.retryable) {
+          showModal('生成失败', '生成失败，未扣除配额。请尝试其他描述。');
+        } else {
+          showModal('错误', err.message || '改编失败');
+        }
+      }
+      btn.disabled = false; btn.textContent = '生成改编版';
+    });
+
+    document.getElementById('remove-watermark-btn').addEventListener('click', async () => {
+      window._currentGameId = gameId;
+      buyRemoveWatermark();
+    });
+
+    document.getElementById('share-btn').addEventListener('click', () => {
+      shareGame(gameId);
+    });
+
+    updateNav();
+    loadGame();
+
+    // Load credits badge and recharge button
+    (async () => {
+      if (checkAuth()) {
+        try {
+          const data = await apiCall('/api/user/me');
+          const badge = document.getElementById('credits-badge');
+          const count = document.getElementById('credits-count');
+          const recharge = document.getElementById('nav-recharge');
+          if (badge) badge.style.display = 'inline';
+          if (count) count.textContent = data.user.credits || 0;
+          if (recharge) recharge.style.display = 'inline';
+        } catch {}
+      } else {
+        const recharge = document.getElementById('nav-recharge');
+        if (recharge) recharge.style.display = 'inline';
+      }
+    })();
+  </script>
+</body>
+</html>

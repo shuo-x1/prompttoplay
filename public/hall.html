@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏大厅 - PromptToPlay</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="logo">PromptToPlay</a>
+    <div class="nav-links">
+      <a href="hall.html" class="active">游戏大厅</a>
+      <a href="profile.html" id="nav-profile">个人中心</a>
+      <span id="credits-badge" class="credits-badge" style="display:none;" onclick="showCreditShop()">🪙 <span id="credits-count">0</span></span>
+      <a href="javascript:void(0)" id="nav-recharge" class="nav-recharge" onclick="showCreditShop()" style="display:none;">💰 充值</a>
+      <a href="auth.html" id="nav-login">登录</a>
+      <button onclick="logout()" id="nav-logout" style="display:none;">退出</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hall-header">
+      <h1>🎮 游戏大厅</h1>
+      <div class="hall-controls">
+        <input type="text" id="search-input" placeholder="搜索游戏...">
+        <select id="sort-select">
+          <option value="created">最新发布</option>
+          <option value="plays">最多游玩</option>
+        </select>
+      </div>
+      <div class="category-tabs" id="category-tabs">
+        <button class="tab active" data-category="all">全部</button>
+        <button class="tab" data-category="action">动作</button>
+        <button class="tab" data-category="puzzle">益智</button>
+        <button class="tab" data-category="shooting">射击</button>
+        <button class="tab" data-category="sports">体育</button>
+        <button class="tab" data-category="simulation">模拟</button>
+        <button class="tab" data-category="other">其他</button>
+      </div>
+    </section>
+
+    <section class="games-grid" id="games-grid"></section>
+
+    <div class="pagination" id="pagination">
+      <button id="prev-page" disabled>上一页</button>
+      <span id="page-info">第 1 页</span>
+      <button id="next-page">下一页</button>
+    </div>
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay" style="display:none;">
+    <div class="modal" id="modal-content"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    let currentCategory = 'all';
+    let currentPage = 1;
+    let currentSort = 'created';
+    let totalPages = 1;
+
+    function updateNav() {
+      const token = localStorage.getItem('ptp_token');
+      document.getElementById('nav-login').style.display = token ? 'none' : 'inline';
+      document.getElementById('nav-logout').style.display = token ? 'inline' : 'none';
+    }
+
+    function getCoverColor(title) {
+      const colors = [
+        ['#667eea','#764ba2'], ['#f093fb','#f5576c'], ['#4facfe','#00f2fe'],
+        ['#43e97b','#38f9d7'], ['#fa709a','#fee140'], ['#a8edea','#fed6e3'],
+        ['#ff9a9e','#fecfef'], ['#ffecd2','#fcb69f'], ['#a18cd1','#fbc2eb'],
+        ['#fad0c4','#ffd1ff'], ['#84fab0','#8fd3f4'], ['#e0c3fc','#8ec5fc']
+      ];
+      let hash = 0;
+      for (let i = 0; i < title.length; i++) hash = title.charCodeAt(i) + ((hash << 5) - hash);
+      return colors[Math.abs(hash) % colors.length];
+    }
+
+    function getCoverEmoji(category) {
+      const map = { action:'⚔️', puzzle:'🧩', shooting:'🔫', sports:'⚽', simulation:'🌿', other:'🎮' };
+      return map[category] || '🎮';
+    }
+
+    async function loadGames() {
+      const search = document.getElementById('search-input').value;
+      const sort = document.getElementById('sort-select').value;
+      currentSort = sort;
+
+      try {
+        const params = new URLSearchParams({
+          category: currentCategory,
+          sort,
+          page: currentPage,
+          limit: 12
+        });
+        if (search) params.set('search', search);
+
+        const data = await apiCall(`/api/games?${params.toString()}`);
+        renderGames(data.games);
+        totalPages = Math.ceil(data.total / 12) || 1;
+        document.getElementById('page-info').textContent = `第 ${currentPage} 页 / 共 ${totalPages} 页`;
+        document.getElementById('prev-page').disabled = currentPage <= 1;
+        document.getElementById('next-page').disabled = currentPage >= totalPages;
+      } catch (err) {
+        console.error('加载游戏失败:', err);
+      }
+    }
+
+    function renderGames(games) {
+      const grid = document.getElementById('games-grid');
+      if (!games || games.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><p>暂无游戏，快去创建第一个吧！</p></div>';
+        return;
+      }
+
+      const categoryNames = { action:'动作', puzzle:'益智', shooting:'射击', sports:'体育', simulation:'模拟', other:'其他' };
+
+      grid.innerHTML = games.map(game => {
+        const [c1, c2] = getCoverColor(game.title);
+        const emoji = getCoverEmoji(game.category);
+        return `
+        <div class="game-card" onclick="window.location.href='game.html?id=${game.id}'">
+          <div class="game-card-preview" style="background: linear-gradient(135deg, ${c1}, ${c2}); display:flex; align-items:center; justify-content:center;">
+            <div style="font-size:64px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));">${emoji}</div>
+          </div>
+          <div class="game-card-info">
+            <h3>${escapeHtml(game.title || '未命名游戏')}</h3>
+            <span class="category-badge">${categoryNames[game.category] || game.category}</span>
+            <span class="plays">🎮 ${game.plays || 0} 次游玩</span>
+          </div>
+        </div>
+      `}).join('');
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str || '';
+      return div.innerHTML;
+    }
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentCategory = tab.dataset.category;
+        currentPage = 1;
+        loadGames();
+      });
+    });
+
+    document.getElementById('search-input').addEventListener('input', debounce(() => {
+      currentPage = 1;
+      loadGames();
+    }, 300));
+
+    document.getElementById('sort-select').addEventListener('change', () => {
+      currentPage = 1;
+      loadGames();
+    });
+
+    document.getElementById('prev-page').addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; loadGames(); }
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage++; loadGames(); }
+    });
+
+    function debounce(fn, delay) {
+      let timer;
+      return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+    }
+
+    updateNav();
+    loadGames();
+
+    // Load credits badge and recharge button
+    (async () => {
+      if (checkAuth()) {
+        try {
+          const data = await apiCall('/api/user/me');
+          const badge = document.getElementById('credits-badge');
+          const count = document.getElementById('credits-count');
+          const recharge = document.getElementById('nav-recharge');
+          if (badge) badge.style.display = 'inline';
+          if (count) count.textContent = data.user.credits || 0;
+          if (recharge) recharge.style.display = 'inline';
+        } catch {}
+      } else {
+        // Show recharge button even when not logged in
+        const recharge = document.getElementById('nav-recharge');
+        if (recharge) recharge.style.display = 'inline';
+      }
+    })();
+  </script>
+</body>
+</html>

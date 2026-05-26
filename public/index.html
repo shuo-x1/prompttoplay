@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PromptToPlay - 创建游戏</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="logo">PromptToPlay</a>
+    <div class="nav-links">
+      <a href="hall.html">游戏大厅</a>
+      <a href="profile.html" id="nav-profile">个人中心</a>
+      <span id="credits-badge" class="credits-badge" style="display:none;" onclick="showCreditShop()">🪙 <span id="credits-count">0</span></span>
+      <a href="javascript:void(0)" id="nav-recharge" class="nav-recharge" onclick="showCreditShop()" style="display:none;">💰 充值</a>
+      <a href="auth.html" id="nav-login">登录</a>
+      <button onclick="logout()" id="nav-logout" style="display:none;">退出</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero">
+      <h1>创建你的游戏</h1>
+      <p>描述任何游戏创意，AI 将立即为你生成。</p>
+    </section>
+
+    <section class="generator-form">
+      <form id="generate-form">
+        <div class="form-row">
+          <textarea
+            id="prompt-input"
+            placeholder="描述你的游戏... 例如：一个躲避小行星并收集道具的太空射击游戏"
+            rows="3"
+            required
+          ></textarea>
+        </div>
+        <div class="form-row form-controls">
+          <select id="category-select">
+            <option value="action">动作</option>
+            <option value="puzzle">益智</option>
+            <option value="shooting">射击</option>
+            <option value="sports">体育</option>
+            <option value="simulation">模拟</option>
+            <option value="other">其他</option>
+          </select>
+          <button type="submit" id="generate-btn" class="btn btn-primary">生成游戏</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="game-output" id="game-output" style="display:none;">
+      <div class="output-controls">
+        <div class="iterate-control" id="iterate-control" style="display:none;">
+          <input type="text" id="iterate-input" placeholder="描述你想要的修改...">
+          <button id="iterate-btn" class="btn btn-secondary">迭代优化</button>
+        </div>
+        <div class="action-buttons">
+          <button id="remove-watermark-btn" class="btn btn-outline" style="display:none;">去除水印 (1 积分)</button>
+          <button id="share-btn" class="btn btn-outline">分享</button>
+        </div>
+      </div>
+      <iframe id="game-iframe" sandbox="allow-scripts allow-same-origin" style="width:100%;height:500px;border:1px solid #ddd;border-radius:8px;"></iframe>
+    </section>
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay" style="display:none;">
+    <div class="modal" id="modal-content"></div>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    let currentGameId = null;
+    let currentGameWatermarkRemoved = false;
+    window._currentGameId = null;
+
+    document.getElementById('generate-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!checkAuth()) { window.location.href = 'auth.html'; return; }
+
+      const prompt = document.getElementById('prompt-input').value;
+      const category = document.getElementById('category-select').value;
+      const btn = document.getElementById('generate-btn');
+      btn.disabled = true;
+        btn.textContent = '正在生成...';
+
+      try {
+        const data = await apiCall('/api/generate', 'POST', { prompt, category });
+        currentGameId = data.game_id;
+        window._currentGameId = data.game_id;
+        currentGameWatermarkRemoved = false;
+        showGame(data.html);
+        await updateUIState();
+      } catch (err) {
+        if (err.status === 429) {
+          showQuotaModal();
+        } else if (err.status === 500 && err.data && err.data.retryable) {
+          showModal('生成失败', '生成失败，未扣配额。请尝试其他描述。');
+        } else {
+          showModal('错误', err.message || '出错了');
+        }
+      }
+      btn.disabled = false;
+      btn.textContent = '生成游戏';
+    });
+
+    function showGame(html) {
+      document.getElementById('game-output').style.display = 'block';
+      const iframe = document.getElementById('game-iframe');
+      iframe.srcdoc = html;
+      window.scrollTo({ top: document.getElementById('game-output').offsetTop - 80, behavior: 'smooth' });
+    }
+
+    async function updateUIState() {
+      try {
+        const data = await apiCall('/api/user/me');
+        const plan = data.user.plan;
+        const isPro = plan === 'pro' || plan === 'enterprise';
+
+        document.getElementById('iterate-control').style.display = isPro ? 'flex' : 'none';
+        document.getElementById('remove-watermark-btn').style.display = (!isPro && !currentGameWatermarkRemoved) ? 'inline-block' : 'none';
+
+        // Update credits badge and recharge
+        const credits = data.user.credits || 0;
+        const badge = document.getElementById('credits-badge');
+        const count = document.getElementById('credits-count');
+        const recharge = document.getElementById('nav-recharge');
+        if (badge) badge.style.display = 'inline';
+        if (count) count.textContent = credits;
+        if (recharge) recharge.style.display = 'inline';
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    // Show credits on load
+    (async () => {
+      if (checkAuth()) {
+        try {
+          const data = await apiCall('/api/user/me');
+          const badge = document.getElementById('credits-badge');
+          const count = document.getElementById('credits-count');
+          const recharge = document.getElementById('nav-recharge');
+          if (badge) badge.style.display = 'inline';
+          if (count) count.textContent = data.user.credits || 0;
+          if (recharge) recharge.style.display = 'inline';
+        } catch {}
+      } else {
+        const recharge = document.getElementById('nav-recharge');
+        if (recharge) recharge.style.display = 'inline';
+      }
+    })();
+
+    document.getElementById('iterate-btn').addEventListener('click', async () => {
+      const prompt = document.getElementById('iterate-input').value;
+      if (!prompt) return;
+      const btn = document.getElementById('iterate-btn');
+      btn.disabled = true; btn.textContent = '优化中...';
+      try {
+        const data = await apiCall('/api/generate/iterate', 'POST', { gameId: currentGameId, prompt });
+        showGame(data.html);
+      } catch (err) {
+        if (err.status === 429) showQuotaModal();
+        else if (err.status === 403) showModal('需要升级', '迭代功能仅对 Pro 和企业版用户开放。');
+        else showModal('错误', err.message || '迭代失败');
+      }
+      btn.disabled = false; btn.textContent = '迭代优化';
+    });
+
+    document.getElementById('remove-watermark-btn').addEventListener('click', async () => {
+      if (!currentGameId) return;
+      window._currentGameId = currentGameId;
+      buyRemoveWatermark();
+    });
+
+    document.getElementById('share-btn').addEventListener('click', () => {
+      shareGame(currentGameId);
+    });
+  </script>
+</body>
+</html>

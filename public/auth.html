@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录 - PromptToPlay</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <nav class="navbar">
+    <a href="/" class="logo">PromptToPlay</a>
+    <div class="nav-links">
+      <a href="hall.html">游戏大厅</a>
+    </div>
+  </nav>
+
+  <main class="container auth-container">
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tab-login-btn">登录</button>
+        <button class="auth-tab" id="tab-register-btn">注册</button>
+      </div>
+
+      <form id="login-form" class="auth-form">
+        <h2>欢迎回来</h2>
+        <div class="form-group">
+          <label>邮箱</label>
+          <input type="email" id="login-email" required placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="login-password" required placeholder="输入密码">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">登录</button>
+      </form>
+
+      <form id="register-form" class="auth-form" style="display:none;">
+        <h2>创建账号</h2>
+        <div class="form-group">
+          <label>邮箱</label>
+          <input type="email" id="reg-email" required placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="reg-password" required placeholder="至少 6 个字符" minlength="6">
+        </div>
+        <div class="form-group">
+          <label>邀请码（可选）</label>
+          <input type="text" id="reg-invite" placeholder="如果有邀请码请输入">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">注册</button>
+      </form>
+
+      <div id="auth-error" class="auth-error" style="display:none;"></div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteParam = urlParams.get('invite');
+    if (inviteParam) {
+      document.getElementById('reg-invite').value = inviteParam;
+      switchTab('register');
+    }
+
+    document.getElementById('tab-login-btn').addEventListener('click', () => switchTab('login'));
+    document.getElementById('tab-register-btn').addEventListener('click', () => switchTab('register'));
+
+    function switchTab(tab) {
+      const isLogin = tab === 'login';
+      document.getElementById('login-form').style.display = isLogin ? 'block' : 'none';
+      document.getElementById('register-form').style.display = isLogin ? 'none' : 'block';
+      document.getElementById('tab-login-btn').classList.toggle('active', isLogin);
+      document.getElementById('tab-register-btn').classList.toggle('active', !isLogin);
+      document.getElementById('auth-error').style.display = 'none';
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+      try {
+        const data = await apiCall('/api/auth/login', 'POST', {
+          email: document.getElementById('login-email').value,
+          password: document.getElementById('login-password').value
+        });
+        localStorage.setItem('ptp_token', data.token);
+        window.location.href = '/';
+      } catch (err) {
+        showError(err.message || '登录失败');
+      }
+    });
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+      const body = {
+        email: document.getElementById('reg-email').value,
+        password: document.getElementById('reg-password').value
+      };
+      const inviteCode = document.getElementById('reg-invite').value.trim();
+      if (inviteCode) body.invitationCode = inviteCode;
+
+      try {
+        const data = await apiCall('/api/auth/register', 'POST', body);
+        localStorage.setItem('ptp_token', data.token);
+        window.location.href = '/';
+      } catch (err) {
+        showError(err.message || '注册失败');
+      }
+    });
+
+    function showError(msg) {
+      const el = document.getElementById('auth-error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById('auth-error').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
