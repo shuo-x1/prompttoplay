@@ -77,6 +77,7 @@ async function initDb(callback) {
     title TEXT,
     description TEXT,
     category TEXT,
+    style TEXT,
     html_code TEXT,
     cover_image TEXT,
     is_public INTEGER DEFAULT 1,
@@ -93,6 +94,8 @@ async function initDb(callback) {
   try { DB.run('ALTER TABLE games ADD COLUMN cover_image TEXT'); } catch(e) {}
   // Migrate: add likes column
   try { DB.run('ALTER TABLE games ADD COLUMN likes INTEGER DEFAULT 0'); } catch(e) {}
+  // Migrate: add style column
+  try { DB.run('ALTER TABLE games ADD COLUMN style TEXT'); } catch(e) {}
 
   // 游戏点赞记录表（防止重复点赞）
   DB.run(`CREATE TABLE IF NOT EXISTS game_likes (

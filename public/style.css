@@ -177,6 +177,19 @@ body::before {
 /* 热门游戏区域 */
 .hot-games-section { margin-top: 40px; padding-top: 24px; border-top: 2px solid var(--border); }
 
+/* 风格标签 */
+.style-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, rgba(255,107,107,0.15), rgba(78,205,196,0.15));
+  color: var(--text);
+  border: 1px solid rgba(255,107,107,0.2);
+  white-space: nowrap;
+}
+
 /* ===== Hero ===== */
 .hero { text-align: center; padding: 48px 0 28px; position: relative; }
 .hero h1 {

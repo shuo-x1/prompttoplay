@@ -139,12 +139,12 @@ router.post('/generate', authMiddleware, (req, res) => {
       const gameCategory = category !== 'other' ? category : detectGameType(prompt);
       const title = prompt.substring(0, 80);
       const description = generateDescription(prompt, gameCategory);
-      const coverImage = generateCoverImage(title, gameCategory);
+      const coverImage = generateCoverImage(title, gameCategory, style);
 
       const result = db.run(
-        `INSERT INTO games (user_id, title, description, category, html_code, cover_image, watermark_removed, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-        [user.id, title, description, gameCategory, finalHtml, coverImage, now, now]
+        `INSERT INTO games (user_id, title, description, category, style, html_code, cover_image, watermark_removed, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+        [user.id, title, description, gameCategory, style || null, finalHtml, coverImage, now, now]
       );
       const gameId = result.lastID;
 
