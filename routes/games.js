@@ -1,8 +1,9 @@
 const express = require('express');
 const db = require('../config/db');
 const { authMiddleware } = require('../middleware/auth');
-const { generateGame } = require('../services/deepseek');
+const { generateGame, detectGameType } = require('../services/deepseek');
 const { injectWatermark, shouldWatermark } = require('../services/watermark');
+const { generateDescription, generateCoverImage } = require('../services/gameMeta');
 
 const router = express.Router();
 
@@ -135,12 +136,15 @@ router.post('/generate', authMiddleware, (req, res) => {
       const shouldAddWatermark = shouldWatermark(user.plan, false);
       const finalHtml = shouldAddWatermark ? injectWatermark(htmlCode) : htmlCode;
       const now = new Date().toISOString();
+      const gameCategory = category !== 'other' ? category : detectGameType(prompt);
       const title = prompt.substring(0, 80);
+      const description = generateDescription(prompt, gameCategory);
+      const coverImage = generateCoverImage(title, gameCategory);
 
       const result = db.run(
-        `INSERT INTO games (user_id, title, description, category, html_code, watermark_removed, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
-        [user.id, title, prompt, category, finalHtml, now, now]
+        `INSERT INTO games (user_id, title, description, category, html_code, cover_image, watermark_removed, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+        [user.id, title, description, gameCategory, finalHtml, coverImage, now, now]
       );
       const gameId = result.lastID;
 
@@ -219,11 +223,14 @@ router.post('/games/:id/remix', authMiddleware, (req, res) => {
       const finalHtml = shouldAddWatermark ? injectWatermark(htmlCode) : htmlCode;
       const now = new Date().toISOString();
       const title = prompt.substring(0, 80);
+      const gameCategory = originalGame.category;
+      const description = generateDescription(prompt, gameCategory);
+      const coverImage = generateCoverImage(title, gameCategory);
 
       const result = db.run(
-        `INSERT INTO games (user_id, title, description, category, html_code, original_game_id, watermark_removed, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-        [user.id, title, prompt, originalGame.category, finalHtml, parseInt(req.params.id), now, now]
+        `INSERT INTO games (user_id, title, description, category, html_code, cover_image, original_game_id, watermark_removed, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+        [user.id, title, description, gameCategory, finalHtml, coverImage, parseInt(req.params.id), now, now]
       );
 
       db.run('UPDATE games SET remix_count = remix_count + 1 WHERE id = ?', [req.params.id]);

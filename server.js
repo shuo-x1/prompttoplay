@@ -126,7 +126,7 @@ initDb(async (err) => {
   }
 
   // 自动 seed：如果数据库中没有游戏，自动插入演示游戏
-  const { all } = require('./config/db');
+  const { all, run } = require('./config/db');
   const existingGames = all('SELECT COUNT(*) as count FROM games');
   if (existingGames[0].count === 0) {
     console.log('No games found, seeding demo games...');
@@ -137,6 +137,22 @@ initDb(async (err) => {
     } catch (seedErr) {
       console.error('Seed failed (non-fatal):', seedErr.message);
     }
+  }
+
+  // 自动补充缺失的封面图（分批处理，避免内存问题）
+  try {
+    const { generateCoverImage } = require('./services/gameMeta');
+    const gamesWithoutCover = all('SELECT id, title, category FROM games WHERE cover_image IS NULL OR cover_image = "" LIMIT 20');
+    if (gamesWithoutCover.length > 0) {
+      console.log(`补全 ${gamesWithoutCover.length} 个游戏的封面图...`);
+      gamesWithoutCover.forEach(g => {
+        const cover = generateCoverImage(g.title || '游戏', g.category || 'other');
+        run('UPDATE games SET cover_image = ? WHERE id = ?', [cover, g.id]);
+      });
+      console.log('封面补全完成。');
+    }
+  } catch (coverErr) {
+    console.error('Cover fix failed (non-fatal):', coverErr.message);
   }
 
   app.listen(PORT, () => {

@@ -78,6 +78,7 @@ async function initDb(callback) {
     description TEXT,
     category TEXT,
     html_code TEXT,
+    cover_image TEXT,
     is_public INTEGER DEFAULT 1,
     watermark_removed INTEGER DEFAULT 0,
     original_game_id INTEGER,
@@ -86,6 +87,9 @@ async function initDb(callback) {
     created_at TEXT,
     updated_at TEXT
   )`);
+
+  // Migrate: add cover_image column if upgrading from old schema
+  try { DB.run('ALTER TABLE games ADD COLUMN cover_image TEXT'); } catch(e) {}
 
   DB.run(`CREATE TABLE IF NOT EXISTS api_keys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

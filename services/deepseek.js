@@ -17,6 +17,22 @@ function detectGameType(prompt) {
   return 'general';
 }
 
+/**
+ * 双人游戏检测
+ */
+function isMultiplayer(prompt) {
+  return /双人|两人|2人|对战|pk|对决|双打|多人|合作|双人对战|双人合作/i.test(prompt);
+}
+
+const MULTIPLAYER_REQ = `【双人游戏特别要求】
+- 玩家1(P1)：WASD 移动 + F 攻击/跳跃
+- 玩家2(P2)：方向键移动 + 回车/空格 攻击
+- 两个玩家有不同颜色区分（P1蓝色、P2红色）
+- 各自独立的血量/分数显示
+- 有胜负判定（P1胜/P2胜/平局）
+- 开始界面选择单人/双人模式
+- 操作说明要分别标注P1和P2的按键`;
+
 const TYPE_QUALITY = {
   shooting: '必须包含：多种敌人类型（普通/快速/精英）、至少1个BOSS战、道具掉落（火力增强/护盾/炸弹）、子弹特效、爆炸粒子、滚动星空背景、分数连击系统。',
   action: '必须包含：可跳跃的平台关卡、多种敌人、至少1个BOSS、攻击连招或技能、道具收集（金币/血瓶）、受击无敌帧、视差滚动背景、关卡进度。',
@@ -36,6 +52,9 @@ function enhancePrompt(userPrompt) {
   const trimmed = userPrompt.trim();
   const gameType = detectGameType(trimmed);
   const typeReq = TYPE_QUALITY[gameType];
+  const multiplayer = isMultiplayer(trimmed);
+
+  const multiplayerReq = multiplayer ? MULTIPLAYER_REQ : '';
 
   // 短输入（<20字）：自动补全完整游戏设计
   if (trimmed.length < 20) {
@@ -43,6 +62,7 @@ function enhancePrompt(userPrompt) {
 
 【游戏设计要求】
 ${typeReq}
+${multiplayerReq}
 
 【通用品质要求】
 - 这是一个完整可玩的游戏，不是demo
@@ -50,7 +70,8 @@ ${typeReq}
 - 有暂停功能（P或ESC）
 - 有结束界面（分数+重玩按钮）
 - 计分系统 + localStorage最高分
-- 难度随时间/分数递增`;
+- 难度随时间/分数递增
+- 操作说明文字要大且醒目（至少18px，带半透明背景框），放在屏幕显眼位置`;
   }
 
   // 中等输入：附加品质要求
@@ -58,6 +79,7 @@ ${typeReq}
 
 【请确保游戏品质达到4399小游戏级别】
 ${typeReq}
+${multiplayerReq}
 
 【视觉与体验】
 - 完整的开始/暂停/结束界面
@@ -66,7 +88,8 @@ ${typeReq}
 - 粒子特效、动画过渡、屏幕震动
 - Web Audio API 合成音效
 - 桌面键盘 + 移动端触摸双适配
-- 中文UI文字`;
+- 中文UI文字
+- 操作说明文字要大且醒目（至少18px，带半透明背景框）`;
 }
 
 const SYSTEM_PROMPT = `你是一位资深4399风格小游戏开发者，擅长用纯 HTML5 Canvas + JS 制作画面精美、手感扎实的网页小游戏。
@@ -106,7 +129,7 @@ const SYSTEM_PROMPT = `你是一位资深4399风格小游戏开发者，擅长�
    - 动画过渡（开始/结束/升级）
    - 美观UI（圆角血条、分数框、技能图标）
 5. **音效系统**：用 Web Audio API 合成至少5种音效（移动/跳跃/射击/得分/受击/爆炸/胜利/失败，选适合的）
-6. **操作说明**：画面上有清晰的中文操作提示
+6. **操作说明**：画面上有清晰的中文操作提示，文字要大且醒目（至少18px），带半透明背景框，放在屏幕顶部或底部显眼位置，不要用小字藏在角落
 7. **双端适配**：桌面键盘 + 移动端虚拟按钮或触摸滑动
 8. **暂停功能**：按 P 或 ESC 可暂停/继续
 
@@ -209,4 +232,4 @@ async function generateGame(prompt, previousCode) {
   }
 }
 
-module.exports = { generateGame, enhancePrompt, detectGameType };
+module.exports = { generateGame, enhancePrompt, detectGameType, isMultiplayer };
