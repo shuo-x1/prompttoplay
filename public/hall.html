@@ -29,13 +29,17 @@
         <select id="sort-select">
           <option value="created">最新发布</option>
           <option value="plays">最多游玩</option>
+          <option value="likes">最多点赞</option>
         </select>
       </div>
       <div class="category-tabs" id="category-tabs">
         <button class="tab active" data-category="all">全部</button>
         <button class="tab" data-category="action">动作</button>
-        <button class="tab" data-category="puzzle">益智</button>
         <button class="tab" data-category="shooting">射击</button>
+        <button class="tab" data-category="puzzle">益智</button>
+        <button class="tab" data-category="match3">消除</button>
+        <button class="tab" data-category="tower">塔防</button>
+        <button class="tab" data-category="racing">竞速</button>
         <button class="tab" data-category="sports">体育</button>
         <button class="tab" data-category="simulation">模拟</button>
         <button class="tab" data-category="other">其他</button>
@@ -136,9 +140,10 @@
           <div class="game-card-info">
             <h3>${escapeHtml(game.title || '未命名游戏')}</h3>
             ${desc}
-            <div style="margin-top:8px;">
+            <div style="margin-top:8px;display:flex;gap:10px;align-items:center;">
               <span class="category-badge">${categoryNames[game.category] || game.category}</span>
-              <span class="plays">🎮 ${game.plays || 0} 次</span>
+              <span class="plays">🎮 ${game.plays || 0}</span>
+              <span class="plays">👍 ${game.likes || 0}</span>
             </div>
           </div>
         </div>

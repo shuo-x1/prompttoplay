@@ -70,12 +70,15 @@
         </div>
         <div class="form-row form-controls">
           <select id="category-select">
+            <option value="other">自动识别</option>
             <option value="action">动作</option>
-            <option value="puzzle">益智</option>
             <option value="shooting">射击</option>
+            <option value="puzzle">益智</option>
+            <option value="match3">消除</option>
+            <option value="tower">塔防</option>
+            <option value="racing">竞速</option>
             <option value="sports">体育</option>
             <option value="simulation">模拟</option>
-            <option value="other">其他</option>
           </select>
           <button type="submit" id="generate-btn" class="btn btn-primary">✨ 生成游戏</button>
         </div>
@@ -90,10 +93,15 @@
         </div>
         <div class="action-buttons">
           <button id="remove-watermark-btn" class="btn btn-outline" style="display:none;">去除水印 (1 积分)</button>
-          <button id="share-btn" class="btn btn-outline">分享</button>
+          <button id="share-btn" class="btn btn-outline">📤 分享</button>
         </div>
       </div>
       <iframe id="game-iframe" sandbox="allow-scripts allow-same-origin" style="width:100%;height:500px;border:1px solid #ddd;border-radius:8px;"></iframe>
+    </section>
+
+    <section class="hot-games-section" id="hot-games-section">
+      <h2 style="font-size:1.3rem;margin-bottom:16px;font-weight:800;">🔥 热门游戏</h2>
+      <div class="games-grid" id="hot-games-grid"></div>
     </section>
   </main>
 
@@ -120,7 +128,7 @@
       const category = document.getElementById('category-select').value;
       const btn = document.getElementById('generate-btn');
       btn.disabled = true;
-        btn.textContent = '正在生成...';
+      btn.innerHTML = '<span class="loading-spinner" style="width:16px;height:16px;border-width:2px;vertical-align:middle;margin-right:6px;"></span> AI正在创作中...';
 
       try {
         const data = await apiCall('/api/generate', 'POST', { prompt, category });
@@ -139,7 +147,7 @@
         }
       }
       btn.disabled = false;
-      btn.textContent = '生成游戏';
+      btn.textContent = '✨ 生成游戏';
     });
 
     function showGame(html) {
@@ -214,6 +222,41 @@
     document.getElementById('share-btn').addEventListener('click', () => {
       shareGame(currentGameId);
     });
+
+    // 加载热门游戏
+    (async function loadHotGames() {
+      try {
+        const data = await apiCall('/api/games?sort=plays&limit=6');
+        const grid = document.getElementById('hot-games-grid');
+        if (!data.games || data.games.length === 0) {
+          document.getElementById('hot-games-section').style.display = 'none';
+          return;
+        }
+        const categoryNames = { action:'动作', puzzle:'益智', shooting:'射击', sports:'体育', simulation:'模拟', other:'其他', match3:'消除', tower:'塔防', racing:'竞速' };
+        grid.innerHTML = data.games.map((game, idx) => {
+          const coverImg = game.cover_image
+            ? `<img src="${game.cover_image}" style="width:100%;height:100%;object-fit:cover;" alt="">`
+            : `<div style="font-size:48px;">🎮</div>`;
+          return `
+          <div class="game-card" style="animation-delay:${idx * 0.05}s" onclick="window.location.href='game.html?id=${game.id}'">
+            <div class="game-card-preview" style="${game.cover_image ? '' : 'background:linear-gradient(135deg,#ff6b6b,#4ecdc4);'}display:flex;align-items:center;justify-content:center;">
+              ${coverImg}
+            </div>
+            <div class="game-card-info">
+              <h3>${game.title || '未命名游戏'}</h3>
+              <p class="game-card-desc">${(game.description || '').substring(0, 40)}${(game.description || '').length > 40 ? '...' : ''}</p>
+              <div style="margin-top:6px;">
+                <span class="category-badge">${categoryNames[game.category] || game.category}</span>
+                <span class="plays">🎮 ${game.plays || 0}</span>
+                <span class="plays">👍 ${game.likes || 0}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('');
+      } catch {
+        document.getElementById('hot-games-section').style.display = 'none';
+      }
+    })();
   </script>
 </body>
 </html>

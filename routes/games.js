@@ -86,7 +86,7 @@ router.get('/games', (req, res) => {
     params.push(`%${search}%`, `%${search}%`);
   }
 
-  const orderBy = sort === 'plays' ? 'g.plays DESC' : 'g.created_at DESC';
+  const orderBy = sort === 'plays' ? 'g.plays DESC' : sort === 'likes' ? 'g.likes DESC' : 'g.created_at DESC';
 
   const games = db.all(
     `SELECT g.*, COALESCE(u.email, 'PromptToPlay 官方') as creator_email FROM games g
@@ -253,6 +253,33 @@ router.post('/games/:id/remix', authMiddleware, (req, res) => {
         retryable: true
       });
     });
+});
+
+// POST /api/games/:id/like - JWT required, toggle like
+router.post('/games/:id/like', authMiddleware, (req, res) => {
+  const game = db.get('SELECT * FROM games WHERE id = ?', [req.params.id]);
+  if (!game) return res.status(404).json({ error: '游戏不存在' });
+
+  const existing = db.get('SELECT * FROM game_likes WHERE game_id = ? AND user_id = ?', [req.params.id, req.user.id]);
+  const now = new Date().toISOString();
+
+  if (existing) {
+    // 取消点赞
+    db.run('DELETE FROM game_likes WHERE game_id = ? AND user_id = ?', [req.params.id, req.user.id]);
+    db.run('UPDATE games SET likes = MAX(0, likes - 1) WHERE id = ?', [req.params.id]);
+    res.json({ liked: false, likes: Math.max(0, (game.likes || 0) - 1) });
+  } else {
+    // 点赞
+    db.run('INSERT INTO game_likes (game_id, user_id, created_at) VALUES (?, ?, ?)', [req.params.id, req.user.id, now]);
+    db.run('UPDATE games SET likes = likes + 1 WHERE id = ?', [req.params.id]);
+    res.json({ liked: true, likes: (game.likes || 0) + 1 });
+  }
+});
+
+// GET /api/games/:id/liked - check if current user liked
+router.get('/games/:id/liked', authMiddleware, (req, res) => {
+  const existing = db.get('SELECT * FROM game_likes WHERE game_id = ? AND user_id = ?', [req.params.id, req.user.id]);
+  res.json({ liked: !!existing });
 });
 
 // PUT /api/games/:id - owner only

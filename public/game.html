@@ -32,6 +32,7 @@
             <span id="game-plays"></span>
           </div>
           <div class="game-actions">
+            <button id="like-btn" class="btn btn-outline">👍 <span id="like-count">0</span></button>
             <button id="remix-btn" class="btn btn-primary">🔄 二次创作</button>
             <button id="share-btn" class="btn btn-outline">📤 分享</button>
             <button id="remove-watermark-btn" class="btn btn-outline" style="display:none;">去除水印 (1 积分)</button>
@@ -88,10 +89,26 @@
       document.getElementById('game-content').style.display = 'block';
       document.getElementById('game-title').textContent = game.title || '未命名游戏';
       document.getElementById('game-category').textContent = categoryNames[game.category] || game.category;
-      document.getElementById('game-plays').textContent = `🎮 ${game.plays || 0} 次游玩`;
+      document.getElementById('game-plays').textContent = `🎮 ${game.plays || 0} 次游玩 · 👍 ${game.likes || 0}`;
+      document.getElementById('like-count').textContent = game.likes || 0;
       document.getElementById('game-iframe').srcdoc = game.html_code;
       window._currentGameId = game.id;
       updateActionButtons(game);
+      checkLiked(game.id);
+    }
+
+    async function checkLiked(gameId) {
+      if (!checkAuth()) return;
+      try {
+        const data = await apiCall(`/api/games/${gameId}/liked`);
+        const btn = document.getElementById('like-btn');
+        if (data.liked) {
+          btn.classList.add('liked');
+          btn.style.background = 'rgba(255,107,107,0.1)';
+          btn.style.borderColor = '#ff6b6b';
+          btn.style.color = '#ff6b6b';
+        }
+      } catch {}
     }
 
     async function updateActionButtons(game) {
@@ -150,6 +167,28 @@
 
     document.getElementById('share-btn').addEventListener('click', () => {
       shareGame(gameId);
+    });
+
+    document.getElementById('like-btn').addEventListener('click', async () => {
+      if (!checkAuth()) { window.location.href = 'auth.html'; return; }
+      try {
+        const data = await apiCall(`/api/games/${gameId}/like`, 'POST');
+        const btn = document.getElementById('like-btn');
+        document.getElementById('like-count').textContent = data.likes;
+        if (data.liked) {
+          btn.classList.add('liked');
+          btn.style.background = 'rgba(255,107,107,0.1)';
+          btn.style.borderColor = '#ff6b6b';
+          btn.style.color = '#ff6b6b';
+        } else {
+          btn.classList.remove('liked');
+          btn.style.background = '';
+          btn.style.borderColor = '';
+          btn.style.color = '';
+        }
+      } catch (err) {
+        showModal('错误', err.message || '操作失败');
+      }
     });
 
     updateNav();

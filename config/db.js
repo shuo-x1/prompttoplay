@@ -84,12 +84,24 @@ async function initDb(callback) {
     original_game_id INTEGER,
     remix_count INTEGER DEFAULT 0,
     plays INTEGER DEFAULT 0,
+    likes INTEGER DEFAULT 0,
     created_at TEXT,
     updated_at TEXT
   )`);
 
   // Migrate: add cover_image column if upgrading from old schema
   try { DB.run('ALTER TABLE games ADD COLUMN cover_image TEXT'); } catch(e) {}
+  // Migrate: add likes column
+  try { DB.run('ALTER TABLE games ADD COLUMN likes INTEGER DEFAULT 0'); } catch(e) {}
+
+  // 游戏点赞记录表（防止重复点赞）
+  DB.run(`CREATE TABLE IF NOT EXISTS game_likes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_id INTEGER,
+    user_id INTEGER,
+    created_at TEXT,
+    UNIQUE(game_id, user_id)
+  )`);
 
   DB.run(`CREATE TABLE IF NOT EXISTS api_keys (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
