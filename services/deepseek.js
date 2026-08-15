@@ -177,55 +177,128 @@ function playSound(type) {
 // 不要用线性变化！分数跳动、血条减少、面板弹出都要缓动`;
 
 /**
- * 视觉风格规范
+ * 视觉风格字典 —— 用户可选择
  */
-const VISUAL_STYLE = `
-【现代视觉风格规范】
-1. 配色方案（选择一套，不要混用）：
-   - 霓虹风：深色背景(#0a0a1a) + 霓虹青(#00f5ff) + 霓虹粉(#ff00ff) + 亮黄(#ffd700)
-   - 糖果风：浅紫渐变背景(#667eea→#764ba2) + 珊瑚橙(#ff6b6b) + 薄荷绿(#4ecdc4) + 鹅黄(#ffe66d)
-   - 森林风：深绿渐变(#134e5e→#71b280) + 金色(#f9d423) + 白色
-   - 日落风：橙紫渐变(#ff6e7f→#bfe9ff) + 暖橙(#ff8c42) + 玫红(#e94057)
+const VISUAL_STYLES = {
+  neon: {
+    name: '霓虹赛博',
+    prompt: `【视觉风格：霓虹赛博】
+- 背景：近黑色(#0a0a1a→#1a1a2e)，带网格线或扫描线
+- 主色：霓虹青(#00f5ff)、霓虹粉(#ff00ff)、亮黄(#ffd700)、电光紫(#bf00ff)
+- 所有可交互元素必须发光：ctx.shadowColor=主色; ctx.shadowBlur=15-25
+- 子弹/激光用亮色+发光拖尾，爆炸用白光核心+彩色粒子
+- UI面板：半透明深色底(rgba(10,10,30,0.8))+霓虹边框(1px solid发光色)
+- 角色用几何感造型，边缘锐利，有科技感
+- 背景有缓慢移动的星星/粒子/网格`
+  },
+  candy: {
+    name: '糖果卡通',
+    prompt: `【视觉风格：糖果卡通】
+- 背景：明亮柔和渐变（粉紫#667eea→#764ba2 或 蓝粉#f093fb→#f5576c）
+- 主色：珊瑚橙(#ff6b6b)、薄荷绿(#4ecdc4)、鹅黄(#ffe66d)、天空蓝(#74b9ff)
+- 所有元素圆润可爱：圆角矩形、圆形、大比例眼睛
+- 渐变填充+果冻高光（顶部白色半透明椭圆）
+- UI面板：奶油色/白色半透明底+柔和阴影+圆角20px
+- 按钮有弹性，按下有挤压效果
+- 角色Q版造型，头大身体小，有腮红和笑脸
+- 粒子用爱心、星星、圆圈等可爱形状`
+  },
+  forest: {
+    name: '森林自然',
+    prompt: `【视觉风格：森林自然】
+- 背景：深绿到浅绿渐变(#134e5e→#71b280)，有阳光光束效果
+- 主色：翠绿(#2ecc71)、金色(#f9d423)、棕色(#8b6914)、天蓝(#3498db)
+- 自然元素：树木、草丛、花朵、蘑菇、云朵
+- 角色用动物/精灵造型，圆润有机形状
+- 木质UI面板：棕色渐变+木纹质感+藤蔓边框
+- 粒子用树叶、花瓣、光点（萤火虫）
+- 地面有草叶装饰，背景有远山和树林剪影`
+  },
+  sunset: {
+    name: '日落暖橙',
+    prompt: `【视觉风格：日落暖橙】
+- 背景：橙紫粉渐变(#ff6e7f→#bfe9ff 或 #ff9966→#ff5e62)，有太阳/晚霞
+- 主色：暖橙(#ff8c42)、玫红(#e94057)、金黄(#ffd700)、淡紫(#a29bfe)
+- 温暖柔和的光影，所有元素有暖色投影
+- 剪影风格的远景（棕榈树/山脉/城市轮廓）
+- UI面板：暖色半透明底+金色边框
+- 粒子用光斑、火星、暖色圆点
+- 角色用剪影或半剪影风格，边缘有金色描边`
+  },
+  pixel: {
+    name: '像素复古',
+    prompt: `【视觉风格：像素复古】
+- 必须使用像素风格渲染：所有图形用方块像素绘制，禁用抗锯齿(ctx.imageSmoothingEnabled=false)
+- 背景：深色或纯色（#1a1c2c或#29366f），可选像素星空
+- 调色板（FC/NES风格）：红(#ef4444)、蓝(#3b82f6)、绿(#22c55e)、黄(#eab308)、肤(#fdba74)、白(#f8f8f8)
+- 角色用像素画：明确的轮廓线、有限的色块、像素眼睛(2x2方块)
+- 字体用等宽字体：ctx.font = 'bold 16px "Courier New", monospace'
+- UI面板：像素风边框（直角、1px实线）、像素血条（方块拼接）
+- 粒子用小方块(2x2或4x4像素)
+- 动画用逐帧切换（每4-8帧切换一次姿态），不要平滑插值
+- 整体致敬8-bit/16-bit时代游戏`
+  },
+  ink: {
+    name: '水墨中国',
+    prompt: `【视觉风格：水墨中国风】
+- 背景：宣纸质感（米白#f5f0e1→#e8e0d0），可选淡墨山水远景
+- 主色：墨黑(#2c2c2c)、朱砂红(#c0392b)、青花蓝(#2980b9)、赭石(#a0522d)
+- 所有元素用毛笔笔触风格：边缘有飞白/晕染效果（用globalCompositeOperation模拟）
+- 线条粗细变化，有书法感
+- 角色用国画/武侠造型：飘逸的衣袍、长剑、斗笠等
+- UI面板：宣纸底+毛笔边框+印章式按钮（朱砂红方形）
+- 粒子用墨点、花瓣、竹叶
+- 留白！不要填满画面，讲究意境
+- 分数/标题用书法风格（大号粗体+墨迹效果）`
+  },
+  dark: {
+    name: '暗黑哥特',
+    prompt: `【视觉风格：暗黑哥特】
+- 背景：深紫黑(#1a0a2e→#0d0d1a)，可选雾气/烛光粒子
+- 主色：暗红(#8b0000)、暗金(#b8860b)、幽紫(#6a0dad)、骨白(#e8e8e8)
+- 整体阴暗压抑但重要元素醒目
+- 角色用哥特/暗黑造型：尖刺、披风、骷髅、火焰
+- UI面板：深色石材质感+暗金边框+尖角装饰
+- 粒子用火星、灰烬、紫色魔法光点
+- 发光用暗红色/紫色（不要太亮），营造神秘感
+- BOSS要巨大有压迫感，多眼/多角/骷髅元素`
+  },
+  ocean: {
+    name: '海洋清新',
+    prompt: `【视觉风格：海洋清新】
+- 背景：蓝色渐变(#0077b6→#00b4d8→#90e0ef)，有光柱从水面射入
+- 主色：海蓝(#023e8a)、珊瑚橙(#ff7f50)、海沫绿(#48cae4)、珍珠白(#f8f9fa)
+- 水下氛围：缓慢上升的气泡、漂浮的海草、光线折射
+- 角色用海洋生物造型：鱼、水母、章鱼、潜水员
+- UI面板：半透明蓝色+波浪边框+珊瑚装饰
+- 粒子用气泡（不同大小+上升+轻微左右摇摆）
+- 移动有水波拖尾效果
+- 地面/边界用珊瑚礁、海草、岩石装饰`
+  }
+};
 
-2. 发光效果：
-   - 重要元素用 ctx.shadowColor=颜色; ctx.shadowBlur=15 做发光
-   - 子弹/道具/玩家都有发光
-   - 发光颜色与元素主色一致
-
-3. 渐变填充：
-   - 所有角色、按钮、UI面板都用渐变填充（createLinearGradient）
-   - 不要用纯色填充！至少2色渐变
-   - 圆形物体用径向渐变（createRadialGradient）做高光
-
-4. UI设计：
-   - 所有面板用圆角矩形（自己实现roundRect函数）
-   - 半透明毛玻璃效果：ctx.fillStyle='rgba(0,0,0,0.5)'
-   - 按钮有渐变+发光+按下缩放
-   - 血条：圆角底框+渐变填充+高光，减少时缓动
-   - 分数用大号粗体字，有描边（strokeText+fillText）
-
-5. 背景层次：
-   - 渐变天空/底色
-   - 远景层（星星/云朵/山脉，慢速移动）
-   - 中景层（建筑/树木，中速移动）
-   - 近景层（地面/装饰，快速移动）
-   - 视差滚动营造深度
-
-6. 角色绘制（禁止画方块！）：
-   - 玩家：身体用圆角矩形+渐变，头部圆形+眼睛，武器/配件，有朝向
-   - 敌人：每种有独特轮廓和颜色，有表情或特征
-   - BOSS：体型大2-3倍，有王冠/角/装甲等特征，有压迫感
-   - 所有角色有idle动画（上下浮动/呼吸缩放）`;
+const DEFAULT_VISUAL_STYLE = `
+【通用视觉规范】
+1. 发光效果：重要元素用 ctx.shadowColor+shadowBlur 做发光
+2. 渐变填充：所有角色、按钮、UI面板都用渐变填充，不要纯色
+3. 圆角UI：面板用圆角矩形，半透明毛玻璃底
+4. 按钮有渐变+发光+按下缩放
+5. 血条：圆角底框+渐变填充+高光，减少时缓动
+6. 分数用大号粗体字，有描边
+7. 背景层次：渐变底色+远景+中景+近景，视差滚动
+8. 角色绘制（禁止方块）：多图层+渐变+阴影，有朝向和idle动画`;
 
 /**
  * 提示词增强
  */
-function enhancePrompt(userPrompt) {
+function enhancePrompt(userPrompt, style) {
   const trimmed = userPrompt.trim();
   const gameType = detectGameType(trimmed);
   const typeReq = TYPE_REQ[gameType] || TYPE_REQ.general;
   const multiplayer = isMultiplayer(trimmed);
   const mpReq = multiplayer ? MULTIPLAYER_REQ : '';
+  const styleInfo = VISUAL_STYLES[style];
+  const styleReq = styleInfo ? `\n${styleInfo.prompt}\n` : '';
 
   if (trimmed.length < 20) {
     return `${trimmed}
@@ -233,7 +306,7 @@ function enhancePrompt(userPrompt) {
 【游戏设计要求】
 ${typeReq}
 ${mpReq}
-
+${styleReq}
 【通用品质要求】
 - 完整可玩的游戏，不是demo
 - 开始界面（游戏标题+开始按钮+操作说明）
@@ -249,7 +322,7 @@ ${mpReq}
 【游戏品质要求】
 ${typeReq}
 ${mpReq}
-
+${styleReq}
 【视觉与体验】
 - 完整的开始/暂停/结束界面
 - 计分系统 + localStorage最高分
@@ -261,14 +334,18 @@ ${mpReq}
 - 操作说明文字要大且醒目（至少20px，带半透明背景框）`;
 }
 
-const SYSTEM_PROMPT = `你是一位顶级HTML5小游戏开发专家，擅长制作画面精美、手感炸裂、让人一玩就停不下来的网页小游戏。你的游戏品质对标4399/Poki上的热门作品。
+function buildSystemPrompt(style) {
+  const styleInfo = VISUAL_STYLES[style];
+  const visualSection = styleInfo ? styleInfo.prompt : DEFAULT_VISUAL_STYLE;
+
+  return `你是一位顶级HTML5小游戏开发专家，擅长制作画面精美、手感炸裂、让人一玩就停不下来的网页小游戏。你的游戏品质对标4399/Poki上的热门作品。
 
 【核心原则】
 你做的不是简陋demo，而是让人想一直玩下去的完整游戏。评判标准：玩家前三秒就觉得"爽"，玩完一局还想再来一局。
 
 ${JUICE_SYSTEM}
 
-${VISUAL_STYLE}
+${visualSection}
 
 【游戏必须包含】
 1. 完整游戏循环：开始界面（标题+开始按钮+操作说明）→ 游玩 → 暂停(P/ESC) → 结束界面（分数+最高分+重玩按钮）
@@ -305,15 +382,17 @@ ${VISUAL_STYLE}
 - 代码量不少于800行，确保游戏内容充实
 
 记住：用户输入一句话，你要交付一个能直接玩、画面好看、手感爽到爆、有成就感的完整小游戏。宁可代码长一点，也要把juice反馈和视觉打磨做到位。`;
+}
 
-async function generateGame(prompt, previousCode) {
-  const enhancedPrompt = enhancePrompt(prompt);
+async function generateGame(prompt, previousCode, style) {
+  const enhancedPrompt = enhancePrompt(prompt, style);
+  const systemPrompt = buildSystemPrompt(style);
   console.log(`[DeepSeek] Original prompt: ${prompt.slice(0, 50)}...`);
-  console.log(`[DeepSeek] Game type: ${detectGameType(prompt)} | Multiplayer: ${isMultiplayer(prompt)}`);
+  console.log(`[DeepSeek] Game type: ${detectGameType(prompt)} | Multiplayer: ${isMultiplayer(prompt)} | Style: ${style || 'auto'}`);
   console.log(`[DeepSeek] Enhanced prompt length: ${enhancedPrompt.length}`);
 
   const messages = [
-    { role: 'system', content: SYSTEM_PROMPT }
+    { role: 'system', content: systemPrompt }
   ];
 
   if (previousCode) {
@@ -388,4 +467,4 @@ async function generateGame(prompt, previousCode) {
   }
 }
 
-module.exports = { generateGame, enhancePrompt, detectGameType, isMultiplayer };
+module.exports = { generateGame, enhancePrompt, detectGameType, isMultiplayer, buildSystemPrompt, VISUAL_STYLES };

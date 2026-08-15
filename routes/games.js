@@ -122,7 +122,7 @@ router.get('/games/:id', (req, res) => {
 
 // POST /api/generate - JWT required
 router.post('/generate', authMiddleware, (req, res) => {
-  const { prompt, category = 'other' } = req.body;
+  const { prompt, category = 'other', style = '' } = req.body;
   if (!prompt) return res.status(400).json({ error: '请输入游戏描述' });
 
   const user = db.get('SELECT * FROM users WHERE id = ?', [req.user.id]);
@@ -131,7 +131,7 @@ router.post('/generate', authMiddleware, (req, res) => {
   const quotaResult = checkAndDeductQuota(user.id, user.plan);
   if (!quotaResult) return res.status(429).json({ error: '配额已用完', retryable: false });
 
-  generateGame(prompt)
+  generateGame(prompt, null, style)
     .then((htmlCode) => {
       const shouldAddWatermark = shouldWatermark(user.plan, false);
       const finalHtml = shouldAddWatermark ? injectWatermark(htmlCode) : htmlCode;

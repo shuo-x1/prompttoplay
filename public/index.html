@@ -80,6 +80,17 @@
             <option value="sports">体育</option>
             <option value="simulation">模拟</option>
           </select>
+          <select id="style-select" title="选择视觉风格">
+            <option value="">🎨 随机风格</option>
+            <option value="neon">🌃 霓虹赛博</option>
+            <option value="candy">🍬 糖果卡通</option>
+            <option value="forest">🌲 森林自然</option>
+            <option value="sunset">🌅 日落暖橙</option>
+            <option value="pixel">👾 像素复古</option>
+            <option value="ink">🏔️ 水墨中国</option>
+            <option value="dark">🦇 暗黑哥特</option>
+            <option value="ocean">🌊 海洋清新</option>
+          </select>
           <button type="submit" id="generate-btn" class="btn btn-primary">✨ 生成游戏</button>
         </div>
       </form>
@@ -126,12 +137,13 @@
 
       const prompt = document.getElementById('prompt-input').value;
       const category = document.getElementById('category-select').value;
+      const style = document.getElementById('style-select').value;
       const btn = document.getElementById('generate-btn');
       btn.disabled = true;
       btn.innerHTML = '<span class="loading-spinner" style="width:16px;height:16px;border-width:2px;vertical-align:middle;margin-right:6px;"></span> AI正在创作中...';
 
       try {
-        const data = await apiCall('/api/generate', 'POST', { prompt, category });
+        const data = await apiCall('/api/generate', 'POST', { prompt, category, style });
         currentGameId = data.game_id;
         window._currentGameId = data.game_id;
         currentGameWatermarkRemoved = false;
