@@ -1,11 +1,42 @@
 {
   "name": "prompttoplay",
   "version": "1.0.0",
-  "description": "AI-powered HTML5 game generator",
+  "description": "AI-powered HTML5 game generator. 用一句话生成可玩的网页游戏，基于 DeepSeek，支持积分变现与一键部署。",
   "main": "server.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "seed": "node -e \"require('./scripts/seed-games').seedGames()\"",
+    "health": "curl -s http://localhost:3000/api/health"
+  },
+  "keywords": [
+    "ai-game-generator",
+    "html5-games",
+    "game-development",
+    "deepseek",
+    "nodejs",
+    "express",
+    "ai",
+    "gamedev",
+    "web-game",
+    "text-to-game",
+    "saas",
+    "fullstack"
+  ],
+  "author": "shuo-x1",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shuo-x1/prompttoplay.git"
+  },
+  "homepage": "https://github.com/shuo-x1/prompttoplay#readme",
+  "bugs": {
+    "url": "https://github.com/shuo-x1/prompttoplay/issues"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

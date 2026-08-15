@@ -3,7 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PromptToPlay - 创建游戏</title>
+  <title>PromptToPlay - AI 游戏生成器 | 一句话生成可玩的网页游戏</title>
+  <meta name="description" content="PromptToPlay 是一个 AI 驱动的 HTML5 游戏生成平台，输入一句话描述，AI 立即为你生成完整可玩的网页游戏。支持积分变现、一键部署。">
+  <meta name="keywords" content="AI游戏生成,HTML5游戏,游戏开发,DeepSeek,网页游戏,游戏制作工具,AI游戏">
+  <meta name="author" content="PromptToPlay">
+  <meta name="theme-color" content="#7c3aed">
+
+  <!-- Favicon (SVG emoji) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="PromptToPlay - AI 游戏生成器">
+  <meta property="og:description" content="输入一句话，AI 立即生成完整可玩的 HTML5 游戏。">
+  <meta property="og:site_name" content="PromptToPlay">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PromptToPlay - AI 游戏生成器">
+  <meta name="twitter:description" content="输入一句话，AI 立即生成完整可玩的网页游戏。">
+
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,8 +40,8 @@
 
   <main class="container">
     <section class="hero">
-      <h1>创建你的游戏</h1>
-      <p>描述任何游戏创意，AI 将立即为你生成。</p>
+      <h1>🎮 创建你的游戏</h1>
+      <p>描述任何游戏创意，AI 将立即为你生成完整可玩的 HTML5 游戏。</p>
     </section>
 
     <section class="generator-form">
@@ -35,6 +54,14 @@
             required
           ></textarea>
         </div>
+        <div class="prompt-examples" style="margin-bottom:12px;">
+          <span style="font-size:.8rem;color:#888;margin-right:8px;">试试：</span>
+          <button type="button" class="example-chip" onclick="fillExample('一个经典的贪吃蛇游戏，有分数和速度递增')">贪吃蛇</button>
+          <button type="button" class="example-chip" onclick="fillExample('2048数字合并游戏，支持键盘和触摸操作')">2048</button>
+          <button type="button" class="example-chip" onclick="fillExample('打砖块游戏，有多种道具和关卡')">打砖块</button>
+          <button type="button" class="example-chip" onclick="fillExample('飞机大战射击游戏，玩家控制飞船躲避敌机并射击')">飞机大战</button>
+          <button type="button" class="example-chip" onclick="fillExample('一个迷宫解谜游戏，玩家需要找到出口并避开陷阱')">迷宫解谜</button>
+        </div>
         <div class="form-row form-controls">
           <select id="category-select">
             <option value="action">动作</option>
@@ -44,7 +71,7 @@
             <option value="simulation">模拟</option>
             <option value="other">其他</option>
           </select>
-          <button type="submit" id="generate-btn" class="btn btn-primary">生成游戏</button>
+          <button type="submit" id="generate-btn" class="btn btn-primary">✨ 生成游戏</button>
         </div>
       </form>
     </section>
@@ -70,6 +97,11 @@
 
   <script src="app.js"></script>
   <script>
+    function fillExample(text) {
+      document.getElementById('prompt-input').value = text;
+      document.getElementById('prompt-input').focus();
+    }
+
     let currentGameId = null;
     let currentGameWatermarkRemoved = false;
     window._currentGameId = null;

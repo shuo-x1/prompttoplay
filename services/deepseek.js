@@ -1,3 +1,6 @@
+// 可配置的 API 地址：默认 DeepSeek 官方，也可通过中转
+const API_BASE = process.env.DEEPSEEK_API_BASE || 'https://api.deepseek.com/v1';
+
 async function generateGame(prompt, previousCode) {
   const messages = [
     {
@@ -23,8 +26,8 @@ async function generateGame(prompt, previousCode) {
 
   try {
     const modelName = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
-    console.log(`[DeepSeek] Calling ${modelName}...`);
-    const response = await fetch('https://api.quickrouter.ai/v1/chat/completions', {
+    console.log(`[DeepSeek] Calling ${modelName} via ${API_BASE}...`);
+    const response = await fetch(`${API_BASE}/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {

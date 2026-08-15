@@ -41,10 +41,16 @@ router.post('/buy-credits', authMiddleware, (req, res) => {
   }
 });
 
-// POST /api/payment/confirm-order - 确认支付订单
+// POST /api/payment/confirm-order - 确认支付订单（仅订单所有者）
 router.post('/confirm-order', authMiddleware, (req, res) => {
   const { orderId } = req.body;
   if (!orderId) return res.status(400).json({ error: '缺少订单号' });
+
+  const order = payment.getOrderStatus(orderId);
+  if (!order) return res.status(404).json({ error: '订单不存在' });
+  if (order.user_id !== req.user.id) {
+    return res.status(403).json({ error: '无权操作此订单' });
+  }
 
   const result = payment.confirmPayment(orderId);
   if (result.success) {
