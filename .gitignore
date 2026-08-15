@@ -42,3 +42,7 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+# 游戏素材中间产物
+assets/base64.json
+
