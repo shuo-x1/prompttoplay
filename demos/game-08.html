@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>极速跑酷 · 金币跳跃</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background: linear-gradient(145deg, #0a0f2e 0%, #1a1f3e 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+            touch-action: manipulation;
+            overflow: hidden;
+        }
+        #game-container {
+            border-radius: 28px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), inset 0 0 0 2px rgba(255, 255, 255, 0.08);
+            background: #1c2a44;
+            padding: 10px;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 20px;
+            background: #0f1a2a;
+            cursor: pointer;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        /* 移动端按钮区 */
+        .touch-zone {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding: 0 10px;
+            pointer-events: none;
+        }
+        .touch-zone span {
+            color: #aec9ff;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 8px 16px;
+            border-radius: 60px;
+            backdrop-filter: blur(6px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+        .jump-btn-area {
+            pointer-events: auto;
+            display: flex;
+            gap: 16px;
+        }
+        .big-jump-btn {
+            background: #ffcf5c;
+            color: #1a1f3e;
+            font-weight: 800;
+            font-size: 18px;
+            padding: 14px 30px;
+            border-radius: 80px;
+            border: none;
+            box-shadow: 0 8px 0 #b87e2e, 0 10px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.05s ease;
+            letter-spacing: 1px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .big-jump-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 2px 0 #b87e2e, 0 8px 12px rgba(0, 0, 0, 0.3);
+        }
+        @media (max-width: 700px) {
+            .desktop-hint {
+                display: none;
+            }
+            .touch-zone span {
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+        }
+        @media (min-width: 701px) {
+            .touch-zone {
+                display: none;  /* 桌面隐藏触摸按钮 */
+            }
+        }
+        .pause-overlay {
+            position: absolute;
+            top: 18px;
+            right: 20px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 40px;
+            padding: 6px 14px;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+<div id="game-container">
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div class="pause-overlay">⏸ P / ESC</div>
+    <div class="touch-zone">
+        <span>✦ 点击屏幕跳跃 · 二段跳</span>
+        <div class="jump-btn-area">
+            <button class="big-jump-btn" id="mobileJumpBtn">跳!</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('game-container');
+
+        // 尺寸
+        const W = 800, H = 400;
+        canvas.width = W;
+        canvas.height = H;
+
+        // ---------- 全局状态 ----------
+        let gameState = 'menu'; // 'menu' | 'playing' | 'paused' | 'gameover'
+        let score = 0;
+        let highScore = localStorage.getItem('runHighScore') || 0;
+        highScore = parseInt(highScore, 10) || 0;
+
+        // 玩家物理
+        let player = {
+            x: 90,
+            y: 230,
+            w: 40,
+            h: 52,
+            vy: 0,
+            gravity: 0.55,
+            jumpPower: -10.5,
+            canDoubleJump: true,
+            grounded: true,
+            yBase: 230
+        };
+
+        // 世界参数
+        let gameSpeed = 5.0;      // 基础速度
+        let baseSpeed = 5.0;
+        let speedIncrease = 0.015;
+        let obstacles = [];
+        let coins = [];
+        let dustParticles = [];
+        let coinParticles = [];
+        let shakeIntensity = 0;
+        let frame = 0;
+        let distance = 0;
+
+        // 生成控制
+        let obstacleTimer = 0;
+        let coinTimer = 0;
+
+        // 音效
+        let audioCtx = null;
+        function initAudio() {
+            if (!audioCtx) {
+                try {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                } catch(e) {
+                    audioCtx = null;
+                }
+            }
+        }
+        function playSound(type) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            if (type === 'jump') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.exponentialRampToValueAtTime(650, now + 0.12);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+            } else if (type === 'doubleJump') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(420, now);
+                osc.frequency.exponentialRampToValueAtTime(900, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+            } else if (type === 'coin') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.exponentialRampToValueAtTime(1320, now + 0.1);
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            } else if (type === 'hit') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
+                gain.gain.setValueAtTime(0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+            } else if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(500, now + 0.08);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            }
+            osc.start(now);
+            osc.stop(now + 0.3);
+        }
+
+        // 重置游戏
+        function resetGame() {
+            score = 0;
+            gameSpeed = baseSpeed;
+            obstacles = [];
+            coins = [];
+            dustParticles = [];
+            coinParticles = [];
+            obstacleTimer = 0;
+            coinTimer = 0;
+            distance = 0;
+            shakeIntensity = 0;
+            player.y = player.yBase;
+            player.vy = 0;
+            player.grounded = true;
+            player.canDoubleJump = true;
+            gameState = 'playing';
+        }
+
+        // 生成障碍物 (多种高低)
+        function spawnObstacle() {
+            const r = Math.random();
+            let type = 'low';
+            let y, w, h;
+            if (r < 0.4) { // 低障碍
+                type = 'low';
+                w = 35; h = 28;
+                y = player.yBase + player.h - h; // 站立地面
+            } else if (r < 0.75) { // 高障碍 (需要跳跃)
+                type = 'tall';
+                w = 28; h = 55;
+                y = player.yBase + player.h - h;
+            } else { // 浮空障碍 (需二段跳/精准跳)
+                type = 'float';
+                w = 38; h = 22;
+                y = player.yBase - 30; // 空中
+            }
+            obstacles.push({
+                x: W + 40,
+                y: y,
+                w: w,
+                h: h,
+                type: type,
+                passed: false
+            });
+        }
+
+        // 生成金币
+        function spawnCoin() {
+            const y = Math.random() < 0.5 ? player.yBase - 30 : player.yBase - 100;
+            coins.push({
+                x: W + 30,
+                y: y,
+                r: 16,
+                collected: false
+            });
+        }
+
+        // 粒子：尘土
+        function emitDust() {
+            if (player.grounded && gameState === 'playing') {
+                dustParticles.push({
+                    x: player.x + player.w/2,
+                    y: player.y + player.h,
+                    vx: -gameSpeed * 0.4,
+                    vy: -Math.random() * 1.5 - 0.5,
+                    life: 0.6,
+                    size: 4 + Math.random() * 7,
+                    color: '#c9b38b'
+                });
+            }
+        }
+
+        // 粒子：金币收集
+        function emitCoinBurst(x, y) {
+            for (let i = 0; i < 12; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 5;
+                coinParticles.push({
+                    x: x,
+                    y: y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 2,
+                    life: 0.7,
+                    size: 3 + Math.random() * 6,
+                    color: '#ffd966'
+                });
+            }
+        }
+
+        // 更新粒子
+        function updateParticles(dt) {
+            // 尘土更新
+            dustParticles = dustParticles.filter(p => {
+                p.x += p.vx * dt * 60;
+                p.y += p.vy * dt * 60;
+                p.life -= dt;
+                return p.life > 0;
+            });
+            // 金币粒子
+            coinParticles = coinParticles.filter(p => {
+                p.x += p.vx * dt * 60;
+                p.y += p.vy * dt * 60;
+                p.vy += 0.15 * dt * 60;
+                p.life -= dt;
+                return p.life > 0;
+            });
+        }
+
+        // 碰撞检测
+        function rectCollide(ax, ay, aw, ah, bx, by, bw, bh) {
+            return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+        }
+
+        // 玩家跳跃
+        function jump() {
+            if (gameState !== 'playing') return;
+            if (player.grounded) {
+                player.vy = player.jumpPower;
+                player.grounded = false;
+                player.canDoubleJump = true;
+                playSound('jump');
+            } else if (player.canDoubleJump) {
+                player.vy = player.jumpPower * 0.92;
+                player.canDoubleJump = false;
+                playSound('doubleJump');
+                // 二段跳粒子
+                for (let i = 0; i < 8; i++) {
+                    dustParticles.push({
+                        x: player.x + player.w/2,
+                        y: player.y + player.h,
+                        vx: -gameSpeed * 0.3 + (Math.random()-0.5)*3,
+                        vy: -Math.random() * 4 - 1,
+                        life: 0.4,
+                        size: 5,
+                        color: '#f0e5c9'
+                    });
+                }
+            }
+        }
+
+        // 输入
+        function handleKey(e) {
+            if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                e.preventDefault();
+                jump();
+            }
+            if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+                if (gameState === 'playing') {
+                    gameState = 'paused';
+                    playSound('click');
+                } else if (gameState === 'paused') {
+                    gameState = 'playing';
+                    playSound('click');
+                }
+            }
+        }
+
+        // 触摸/点击跳跃
+        function handleTap(e) {
+            e.preventDefault();
+            if (gameState === 'menu') {
+                startGame();
+            } else if (gameState === 'gameover') {
+                resetGame();
+                playSound('click');
+            } else if (gameState === 'playing') {
+                jump();
+            } else if (gameState === 'paused') {
+                gameState = 'playing';
+                playSound('click');
+            }
+        }
+
+        function startGame() {
+            initAudio();
+            resetGame();
+            playSound('click');
+        }
+
+        // 移动端按钮
+        document.getElementById('mobileJumpBtn').addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            if (gameState === 'playing') {
+                jump();
+            } else if (gameState === 'menu' || gameState === 'gameover') {
+                startGame();
+            } else if (gameState === 'paused') {
+                gameState = 'playing';
+                playSound('click');
+            }
+        });
+        document.getElementById('mobileJumpBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // 监听
+        window.addEventListener('keydown', handleKey);
+        canvas.addEventListener('click', handleTap);
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handleTap(e);
+        }, { passive: false });
+
+        // UI绘制
+        function drawUI() {
+            // 分数
+            ctx.fillStyle = '#fff';
+            ctx.shadowColor = 'rgba(0,0,0,0.6)';
+            ctx.shadowBlur = 10;
+            ctx.font = 'bold 32px "Segoe UI", system-ui';
+            ctx.textAlign = 'left';
+            ctx.fillText(`✦ ${score}`, 24, 60);
+            ctx.font = '18px system-ui';
+            ctx.fillStyle = '#ffd966';
+            ctx.fillText(`最高分: ${Math.max(highScore, score)}`, 24, 90);
+            ctx.shadowBlur = 0;
+
+            // 速度提示
+            ctx.font = '16px monospace';
+            ctx.fillStyle = '#aab8d8';
+            ctx.textAlign = 'right';
+            ctx.fillText(`速度 ${gameSpeed.toFixed(1)}`, W-24, 45);
+        }
+
+        function drawPlayer() {
+            // 身体
+            ctx.shadowColor = 'rgba(0,0,0,0.5)';
+            ctx.shadowBlur = 10;
+            ctx.fillStyle = '#5fc9f8';
+            ctx.beginPath();
+            ctx.roundRect(player.x, player.y, player.w, player.h, 12);
+            ctx.fill();
+            // 眼睛
+            ctx.fillStyle = '#1a1f3e';
+            ctx.shadowBlur = 4;
+            ctx.beginPath();
+            ctx.arc(player.x + 28, player.y + 15, 5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(player.x + 25, player.y + 13, 2, 0, Math.PI*2);
+            ctx.fill();
+            // 围巾
+            ctx.fillStyle = '#ff9f5c';
+            ctx.fillRect(player.x-4, player.y+8, 10, 14);
+            ctx.shadowBlur = 0;
+        }
+
+        // 绘制背景
+        function drawBackground() {
+            const grad = ctx.createLinearGradient(0, 0, 0, H);
+            grad.addColorStop(0, '#1b2b4a');
+            grad.addColorStop(0.7, '#13213a');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, W, H);
+            // 远景山
+            ctx.fillStyle = '#3a5170';
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath();
+            ctx.moveTo(0, H-100);
+            for (let i=0; i<W; i+=50) {
+                ctx.lineTo(i, H-130 + Math.sin(i*0.01 + frame*0.02)*18);
+            }
+            ctx.lineTo(W, H);
+            ctx.lineTo(0, H);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            // 地面
+            ctx.fillStyle = '#3c5b27';
+            ctx.fillRect(0, player.yBase + player.h - 8, W, 60);
+            ctx.fillStyle = '#5a8a3c';
+            ctx.fillRect(0, player.yBase + player.h - 2, W, 12);
+        }
+
+        // 绘制障碍物
+        function drawObstacles() {
+            obstacles.forEach(ob => {
+                ctx.fillStyle = ob.type === 'tall' ? '#b5543c' : (ob.type === 'float' ? '#a06a9c' : '#6b4a3a');
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = '#000';
+                ctx.beginPath();
+                ctx.roundRect(ob.x, ob.y, ob.w, ob.h, 8);
+                ctx.fill();
+            });
+            ctx.shadowBlur = 0;
+        }
+
+        // 绘制金币
+        function drawCoins() {
+            coins.forEach(c => {
+                if (c.collected) return;
+                ctx.fillStyle = '#ffd966';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#ffb84d';
+                ctx.beginPath();
+                ctx.arc(c.x, c.y, c.r, 0, Math.PI*2);
+                ctx.fill();
+                ctx.fillStyle = '#fff2b0';
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(c.x-3, c.y-3, 5, 0, Math.PI*2);
+                ctx.fill();
+            });
+            ctx.shadowBlur = 0;
+        }
+
+        // 绘制粒子
+        function drawParticles() {
+            dustParticles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fill();
+            });
+            coinParticles.forEach(p => {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+                ctx.fill();
+            });
+            ctx.globalAlpha = 1;
+        }
+
+        // 绘制菜单/结束界面
+        function drawOverlay() {
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(0, 0, W, H);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#fff';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#000';
+            if (gameState === 'menu') {
+                ctx.font = 'bold 48px system-ui';
+                ctx.fillText('🏃 极速跑酷', W/2, 150);
+                ctx.font = '24px system-ui';
+                ctx.fillStyle = '#ffd966';
+                ctx.fillText('点击屏幕 / 空格跳跃 · 二段跳', W/2, 220);
+                ctx.font = '28px system-ui';
+                ctx.fillStyle = '#aad3ff';
+                ctx.fillText('开始奔跑', W/2, 300);
+                ctx.fillText('最高分: ' + highScore, W/2, 350);
+            } else if (gameState === 'gameover') {
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillStyle = '#ff6f6f';
+                ctx.fillText('💥 撞到障碍!', W/2, 170);
+                ctx.font = '30px system-ui';
+                ctx.fillStyle = '#fff';
+                ctx.fillText('分数: ' + score, W/2, 230);
+                ctx.fillStyle = '#ffd966';
+                ctx.fillText('最高分: ' + Math.max(highScore, score), W/2, 280);
+                ctx.font = '26px system-ui';
+                ctx.fillStyle = '#9de0ff';
+                ctx.fillText('点击重新开始', W/2, 340);
+            } else if (gameState === 'paused') {
+                ctx.font = 'bold 44px system-ui';
+                ctx.fillStyle = '#fff';
+                ctx.fillText('⏸ 暂停', W/2, 200);
+                ctx.font = '22px system-ui';
+                ctx.fillStyle = '#ccc';
+                ctx.fillText('按 P / ESC 或点击继续', W/2, 280);
+            }
+            ctx.shadowBlur = 0;
+        }
+
+        // 屏幕震动
+        function applyShake() {
+            if (shakeIntensity > 0) {
+                const dx = (Math.random() - 0.5) * shakeIntensity * 2;
+                const dy = (Math.random() - 0.5) * shakeIntensity * 2;
+                ctx.save();
+                ctx.translate(dx, dy);
+                shakeIntensity *= 0.85;
+                if (shakeIntensity < 0.5) shakeIntensity = 0;
+                return true;
+            }
+            return false;
+        }
+
+        // 更新逻辑
+        function update(dt) {
+            if (gameState !== 'playing') return;
+
+            // 难度递增
+            gameSpeed = baseSpeed + distance * 0.0015;
+            if (gameSpeed > 14) gameSpeed = 14;
+            distance += gameSpeed * dt * 60;
+
+            // 玩家物理
+            player.vy += player.gravity * dt * 60;
+            player.y += player.vy * dt * 60;
+
+            // 地面碰撞
+            if (player.y >= player.yBase) {
+                player.y = player.yBase;
+                player.vy = 0;
+                player.grounded = true;
+                player.canDoubleJump = true;
+            } else {
+                player.grounded = false;
+            }
+
+            // 尘土粒子
+            if (Math.random() < 0.3) emitDust();
+
+            // 生成障碍
+            obstacleTimer -= dt;
+            if (obstacleTimer <= 0) {
+                spawnObstacle();
+                obstacleTimer = 0.9 + Math.random() * 1.4 - (gameSpeed * 0.02);
+                if (obstacleTimer < 0.4) obstacleTimer = 0.4;
+            }
+            // 生成金币
+            coinTimer -= dt;
+            if (coinTimer <= 0) {
+                spawnCoin();
+                coinTimer = 1.2 + Math.random() * 1.0;
+            }
+
+            // 移动障碍和金币
+            obstacles.forEach(ob => {
+                ob.x -= gameSpeed * dt * 60;
+                // 碰撞检测
+                if (!ob.passed && rectCollide(player.x, player.y, player.w, player.h, ob.x, ob.y, ob.w, ob.h)) {
+                    // 撞击
+                    playSound('hit');
+                    shakeIntensity = 8;
+                    if (score > highScore) {
+                        highScore = score;
+                        localStorage.setItem('runHighScore', highScore);
+                    }
+                    gameState = 'gameover';
+                }
+                if (ob.x + ob.w < -30) ob.passed = true;
+            });
+            obstacles = obstacles.filter(ob => ob.x + ob.w > -50 && !ob.passed);
+
+            // 金币移动和收集
+            coins.forEach(c => {
+                c.x -= gameSpeed * dt * 60;
+                // 收集
+                if (!c.collected && Math.hypot(c.x - (player.x+player.w/2), c.y - (player.y+player.h/2)) < c.r + 28) {
+                    c.collected = true;
+                    score += 10;
+                    playSound('coin');
+                    emitCoinBurst(c.x, c.y);
+                }
+            });
+            coins = coins.filter(c => !c.collected && c.x > -50);
+
+            // 更新粒子
+            updateParticles(dt);
+        }
+
+        // 渲染循环
+        function draw() {
+            ctx.clearRect(0, 0, W, H);
+            const shaking = applyShake();
+            drawBackground();
+            drawCoins();
+            drawObstacles();
+            drawPlayer();
+            drawParticles();
+            drawUI();
+            if (shaking) ctx.restore();
+
+            if (gameState === 'menu' || gameState === 'gameover' || gameState === 'paused') {
+                drawOverlay();
+            }
+
+            frame++;
+            requestAnimationFrame(() => {
+                const now = performance.now() / 1000;
+                const dt = Math.min(0.03, (now - lastTime));
+                lastTime = now;
+                if (gameState === 'playing') update(dt);
+                draw();
+            });
+        }
+
+        let lastTime = performance.now() / 1000;
+
+        // 初始化
+        // 初始菜单粒子
+        for (let i = 0; i < 30; i++) {
+            dustParticles.push({
+                x: Math.random() * W,
+                y: H - 30 + Math.random() * 20,
+                vx: -Math.random() * 1 - 0.5,
+                vy: 0,
+                life: 2 + Math.random() * 3,
+                size: 3 + Math.random() * 8,
+                color: '#b0a088'
+            });
+        }
+        draw();
+    })();
+</script>
+</body>
+</html>
