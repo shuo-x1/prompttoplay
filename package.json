@@ -11,6 +11,9 @@
     "seed": "node -e \"require('./scripts/seed-games').seedGames()\"",
     "export-demos": "node scripts/export-demos.js",
     "check-demos": "node scripts/check-demos.js",
+    "test": "node --test test/security.test.js test/smoke.test.js",
+    "test:security": "node --test test/security.test.js",
+    "test:smoke": "node --test test/smoke.test.js",
     "deploy": "git subtree push --prefix web origin gh-pages",
     "health": "curl -s http://localhost:3000/api/health"
   },
@@ -48,5 +51,8 @@
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
     "sql.js": "^1.11.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1"
   }
 }

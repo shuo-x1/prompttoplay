@@ -49,8 +49,8 @@
 
 | 问题 | 风险 | 修复 |
 | --- | --- | --- |
-| iframe 同时给了 `allow-scripts` + `allow-same-origin` | 生成代码可读走 `localStorage` 里的登录 token → 账号接管 | 去掉 `allow-same-origin`，注入 `localStorage` 兜底，三个入口统一走 `renderGameFrame()` |
-| 首页「热门游戏」用 `innerHTML` 直接拼 `game.title` / `description` | 存储型 XSS（标题来自用户 prompt） | 统一 `escapeHtml()`（含引号） |
+| iframe 同时给了 `allow-scripts` + `allow-same-origin` | 生成代码可读走 `localStorage` 里的登录 token → 账号接管 | 去掉 `allow-same-origin`，注入 `localStorage` 兜底，三个入口统一走 `renderGameFrame()`；回归测试见 `test/security.test.js`（含「旧写法」对照组） |
+| 首页「热门游戏」用 `innerHTML` 直接拼 `game.title` / `description` | 存储型 XSS（标题来自用户 prompt） | 统一 `escapeHtml()`（含引号）；`test/security.test.js` 覆盖 |
 | 大厅 / 个人中心各自复制了一份 `escapeHtml`，不转义引号 | 属性注入 | 收口到 `public/app.js` 一份实现 |
 
 ## 8. 已知未做（不粉饰）

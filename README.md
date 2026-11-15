@@ -69,6 +69,17 @@ cp .env.example .env
 - SQL 全参数化；免登录的 `/api/demo/generate` 不写库、不扣配额并单独限流
 - 完整清单与本次修复记录：[docs/security-checklist.md](docs/security-checklist.md)
 
+## 🧪 测试
+
+```bash
+npm test                # 安全回归 + 冒烟，约 5 秒，不需要 Key
+npm run check-demos     # 示例游戏完整性 + 内联脚本语法（11/11）
+```
+
+- `test/security.test.js`：沙箱里的生成代码读不到父页面 token（带「旧写法」对照组，保证能抓到回归）+ `escapeHtml` 转义
+- `test/smoke.test.js`：起服务 → 体验版画廊 → 点开示例后 iframe 内有 canvas、无未捕获异常
+- CI 还没接（token 缺 `workflow` 权限），原因和 workflow 写法见 [docs/ci.md](docs/ci.md)
+
 ## 📁 项目结构
 
 ```
@@ -102,7 +113,7 @@ prompttoplay/
    - 长游戏会撞 `max_tokens=16000` 被截断 → 现在会检测 `finish_reason === 'length'` 并明确报错，同时把提示词改成「必须完整写到 `</html>`」；
    - 浏览器的沙箱 iframe 里 `localStorage` 不可用会让游戏直接崩 → 在预览页注入内存版兜底；
    - 缺 Key 就退出、必须先注册才能试用 → 拆出 `/api/demo/generate` 免登录通道。
-5. **每个改动都跑一遍验证**（健康检查、示例能玩、生成链路、`npm run check-demos`），不靠“看起来没问题”。
+5. **每个改动都跑一遍验证**：`npm test`（安全回归 + 冒烟）、`npm run check-demos`，再手动点一遍体验版，不靠“看起来没问题”。
 
 ## ✨ 功能特性
 
