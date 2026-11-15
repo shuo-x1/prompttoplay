@@ -1,0 +1,65 @@
+[
+  {
+    "title": "勇者冒险记",
+    "category": "action",
+    "description": "横版动作闯关，击败史莱姆和暗影魔王，带真实美术素材",
+    "file": "game-01.html",
+    "size": 1680077
+  },
+  {
+    "title": "贪吃蛇大作战",
+    "category": "action",
+    "description": "经典贪吃蛇游戏，蛇吃食物变长，撞墙或撞自己游戏结束",
+    "file": "game-02.html",
+    "size": 25035
+  },
+  {
+    "title": "打砖块",
+    "category": "action",
+    "description": "打砖块游戏，控制挡板反弹小球打碎所有砖块",
+    "file": "game-03.html",
+    "size": 22929
+  },
+  {
+    "title": "飞机大战",
+    "category": "shooting",
+    "description": "竖版飞机射击游戏，玩家飞机在底部，敌人从上方下来",
+    "file": "game-04.html",
+    "size": 28154
+  },
+  {
+    "title": "2048",
+    "category": "puzzle",
+    "description": "2048数字合并游戏，滑动方块合并相同数字",
+    "file": "game-05.html",
+    "size": 26873
+  },
+  {
+    "title": "记忆翻牌",
+    "category": "puzzle",
+    "description": "记忆配对翻牌游戏，翻开卡牌找到相同图案配对",
+    "file": "game-06.html",
+    "size": 24491
+  },
+  {
+    "title": "宝石消消乐",
+    "category": "puzzle",
+    "description": "三消游戏，交换相邻宝石使三个以上同色连成一线消除",
+    "file": "game-07.html",
+    "size": 21030
+  },
+  {
+    "title": "太空跑酷",
+    "category": "action",
+    "description": "横版跑酷游戏，角色自动奔跑，跳跃躲避障碍物收集金币",
+    "file": "game-08.html",
+    "size": 24926
+  },
+  {
+    "title": "五子棋",
+    "category": "puzzle",
+    "description": "五子棋对弈游戏，玩家对战AI",
+    "file": "game-09.html",
+    "size": 29041
+  }
+]

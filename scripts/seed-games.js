@@ -2119,7 +2119,7 @@ gameLoop();
         // ========== 游戏状态 ==========
         let gameState = 'menu'; // menu, playing, paused, gameover
         let score = 0;
-        let highScore = parseInt(localStorage.getItem('hs_astral'))) || 0;
+        let highScore = parseInt(localStorage.getItem('hs_astral')) || 0;
         let lastTime = 0;
         let deltaTime = 0;
         let timeScale = 1;
@@ -6310,4 +6310,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { seedGames };
+module.exports = { seedGames, DEMO_GAMES };

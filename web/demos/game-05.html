@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>2048 合并</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background: linear-gradient(145deg, #1a2a3a 0%, #0f1a26 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, sans-serif;
+            touch-action: none;
+        }
+        #game-container {
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(8px);
+            border-radius: 32px;
+            padding: 24px 24px 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            width: 420px;
+            max-width: 96vw;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            color: #ecf0f1;
+        }
+        .score-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            padding: 10px 18px;
+            backdrop-filter: blur(4px);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .score-box .label {
+            font-size: 13px;
+            opacity: 0.7;
+            letter-spacing: 1px;
+        }
+        .score-box .value {
+            font-size: 26px;
+            font-weight: 700;
+            line-height: 1.2;
+            color: #fff;
+            text-shadow: 0 2px 8px rgba(0,200,255,0.3);
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+        }
+        .ctrl-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: none;
+            color: white;
+            font-size: 20px;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: 0.15s;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .ctrl-btn:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+        .board-wrapper {
+            position: relative;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 20px;
+            padding: 12px;
+            box-shadow: inset 0 4px 12px rgba(0,0,0,0.4);
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            aspect-ratio: 1/1;
+            width: 100%;
+        }
+        .cell {
+            background: rgba(255, 255, 255, 0.07);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 700;
+            color: white;
+            transition: background 0.15s, transform 0.1s;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.2);
+            text-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            position: relative;
+            will-change: transform;
+        }
+        .tile-new {
+            animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .tile-merged {
+            animation: mergePulse 0.3s ease-out;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.2); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes mergePulse {
+            0% { transform: scale(1.2); filter: brightness(1.6); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(6px);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            z-index: 10;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            color: white;
+            text-align: center;
+        }
+        .overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .overlay h2 {
+            font-size: 40px;
+            font-weight: 800;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        .overlay p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+        .overlay button {
+            background: linear-gradient(145deg, #3a8cff, #1e5fb5);
+            border: none;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            padding: 12px 36px;
+            border-radius: 40px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            transition: 0.2s;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .overlay button:hover {
+            transform: scale(1.06);
+            box-shadow: 0 12px 26px rgba(0,0,0,0.4);
+        }
+        .hint {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 13px;
+            margin-top: 16px;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+        #particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+        }
+        .shake {
+            animation: shake 0.3s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(-6px, 4px); }
+            75% { transform: translate(4px, -4px); }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particles"></canvas>
+    <div id="game-container">
+        <div class="header">
+            <div class="score-box">
+                <div class="label">得分</div>
+                <div class="value" id="scoreDisplay">0</div>
+            </div>
+            <div class="score-box">
+                <div class="label">最高</div>
+                <div class="value" id="bestDisplay">0</div>
+            </div>
+            <div class="controls">
+                <button class="ctrl-btn" id="undoBtn" title="撤销">↩</button>
+                <button class="ctrl-btn" id="pauseBtn" title="暂停">⏸️</button>
+            </div>
+        </div>
+        <div class="board-wrapper" id="boardWrapper">
+            <div id="board"></div>
+            <!-- 开始界面 -->
+            <div class="overlay active" id="startOverlay">
+                <h2>2048</h2>
+                <p>滑动合并方块</p>
+                <button id="startBtn">开 始</button>
+                <p style="font-size:14px; opacity:0.7;">WASD / 方向键 / 滑动</p>
+            </div>
+            <!-- 结束界面 -->
+            <div class="overlay" id="endOverlay">
+                <h2 id="endTitle">游戏结束</h2>
+                <p id="endScore">得分: 0</p>
+                <button id="restartBtn">再来一局</button>
+            </div>
+            <!-- 胜利界面 -->
+            <div class="overlay" id="winOverlay">
+                <h2>🎉 你赢啦! 🎉</h2>
+                <p>达到2048</p>
+                <button id="continueBtn">继续游戏</button>
+            </div>
+        </div>
+        <div class="hint">
+            <span>←↑↓→ / 滑动</span> · <span>P 暂停</span> · <span>↩ 撤销</span>
+        </div>
+    </div>
+
+    <script>
+        (function(){
+            // ---------- 音频系统 (Web Audio) ----------
+            let audioCtx;
+            function initAudio() {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            }
+            function playTone(freq, duration, type='sine', gainVal=0.12) {
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(gainVal, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain).connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            }
+            // 合并音效 (双音)
+            function sfxMerge() {
+                playTone(523, 0.12, 'triangle', 0.15);
+                setTimeout(()=>playTone(784, 0.15, 'triangle', 0.12), 40);
+            }
+            // 移动音效
+            function sfxMove() {
+                playTone(210, 0.08, 'sine', 0.05);
+            }
+            // 游戏结束
+            function sfxLose() {
+                playTone(300, 0.3, 'sawtooth', 0.12);
+                setTimeout(()=>playTone(200, 0.4, 'sawtooth', 0.1), 180);
+            }
+            // 点击
+            function sfxClick() {
+                playTone(700, 0.07, 'square', 0.04);
+            }
+            // 胜利
+            function sfxWin() {
+                [523, 659, 784, 1047].forEach((f,i)=>setTimeout(()=>playTone(f, 0.2, 'triangle', 0.12), i*120));
+            }
+
+            // ---------- 粒子特效 ----------
+            const canvas = document.getElementById('particles');
+            const ctx = canvas.getContext('2d');
+            let particles = [];
+            function resizeParticles() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resizeParticles);
+            resizeParticles();
+            function spawnParticles(x, y, color='#00d9ff', count=14) {
+                for (let i=0; i<count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = 2 + Math.random() * 5;
+                    particles.push({
+                        x, y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        life: 1,
+                        decay: 0.015 + Math.random()*0.02,
+                        size: 2 + Math.random()*6,
+                        color
+                    });
+                }
+            }
+            function drawParticles() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i=particles.length-1; i>=0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= p.decay;
+                    if (p.life <= 0) { particles.splice(i,1); continue; }
+                    ctx.globalAlpha = p.life * 0.8;
+                    ctx.fillStyle = p.color;
+                    ctx.shadowColor = p.color;
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
+                requestAnimationFrame(drawParticles);
+            }
+            drawParticles();
+
+            // ---------- 游戏状态 ----------
+            const SIZE = 4;
+            let board, score, best;
+            let lastBoard, lastScore; // 用于撤销
+            let gameOver = false, winAchieved = false, isPaused = false;
+            let currentOverlay = 'start'; // start, end, win, none
+
+            // 获取DOM
+            const boardEl = document.getElementById('board');
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            const bestDisplay = document.getElementById('bestDisplay');
+            const startOverlay = document.getElementById('startOverlay');
+            const endOverlay = document.getElementById('endOverlay');
+            const winOverlay = document.getElementById('winOverlay');
+            const endTitle = document.getElementById('endTitle');
+            const endScore = document.getElementById('endScore');
+            const wrapper = document.getElementById('boardWrapper');
+
+            // 初始化最高分
+            best = parseInt(localStorage.getItem('2048_best') || '0');
+            bestDisplay.textContent = best;
+
+            // 创建格子元素
+            const cells = [];
+            function createBoardUI() {
+                boardEl.innerHTML = '';
+                cells.length = 0;
+                for (let i=0; i<SIZE*SIZE; i++) {
+                    const div = document.createElement('div');
+                    div.className = 'cell';
+                    boardEl.appendChild(div);
+                    cells.push(div);
+                }
+            }
+            createBoardUI();
+
+            // 颜色映射
+            function getColor(value) {
+                const map = {
+                    0: 'rgba(255,255,255,0.07)',
+                    2: '#3b6ea5',
+                    4: '#2e8bc0',
+                    8: '#1fa3c9',
+                    16: '#1bb3c2',
+                    32: '#17c0b0',
+                    64: '#28c76f',
+                    128: '#9fd356',
+                    256: '#d3d93a',
+                    512: '#e3b13c',
+                    1024: '#e5812e',
+                    2048: '#f34b1f',
+                    4096: '#c72b7a'
+                };
+                return map[value] || '#6a5acd';
+            }
+
+            // 渲染板子
+            function renderBoard() {
+                for (let i=0; i<SIZE*SIZE; i++) {
+                    const val = board[Math.floor(i/SIZE)][i%SIZE];
+                    const cell = cells[i];
+                    cell.textContent = val ? val : '';
+                    cell.style.background = getColor(val);
+                    cell.style.color = val > 512 ? 'white' : 'white';
+                    // 清除动画类
+                    cell.classList.remove('tile-new', 'tile-merged');
+                }
+            }
+
+            // 标记新块和合并块（用于动画）
+            function animateTiles(lastBoard, newBoard, mergedPositions) {
+                // 新块动画 (找到新增的2或4)
+                for (let r=0; r<SIZE; r++) {
+                    for (let c=0; c<SIZE; c++) {
+                        if (newBoard[r][c] !== 0 && lastBoard[r][c] === 0) {
+                            // 新增块
+                            cells[r*SIZE+c].classList.add('tile-new');
+                        }
+                        // 合并块（值变大的）
+                        if (mergedPositions && mergedPositions.has(r*SIZE+c)) {
+                            cells[r*SIZE+c].classList.add('tile-merged');
+                        }
+                    }
+                }
+            }
+
+            // 检查游戏是否结束
+            function checkEnd() {
+                for (let r=0; r<SIZE; r++) {
+                    for (let c=0; c<SIZE; c++) {
+                        if (board[r][c] === 0) return false;
+                        if (c+1 < SIZE && board[r][c] === board[r][c+1]) return false;
+                        if (r+1 < SIZE && board[r][c] === board[r+1][c]) return false;
+                    }
+                }
+                return true;
+            }
+
+            // 检查胜利 (2048)
+            function checkWin() {
+                if (winAchieved) return true;
+                for (let r=0; r<SIZE; r++)
+                    for (let c=0; c<SIZE; c++)
+                        if (board[r][c] >= 2048) return true;
+                return false;
+            }
+
+            // 更新UI分数
+            function updateScoreUI() {
+                scoreDisplay.textContent = score;
+                if (score > best) {
+                    best = score;
+                    localStorage.setItem('2048_best', best);
+                    bestDisplay.textContent = best;
+                }
+            }
+
+            // 生成新块
+            function spawnTile() {
+                const empty = [];
+                for (let r=0; r<SIZE; r++)
+                    for (let c=0; c<SIZE; c++)
+                        if (board[r][c] === 0) empty.push([r,c]);
+                if (empty.length === 0) return false;
+                const [r,c] = empty[Math.floor(Math.random() * empty.length)];
+                board[r][c] = Math.random() < 0.9 ? 2 : 4;
+                return true;
+            }
+
+            // 核心移动逻辑
+            function move(direction) {
+                if (gameOver || isPaused) return;
+                initAudio();
+                // 保存当前状态
+                lastBoard = board.map(row => [...row]);
+                lastScore = score;
+
+                let moved = false;
+                const mergedSet = new Set();
+                // 方向: 0左,1上,2右,3下
+                // 处理行/列
+                for (let i=0; i<SIZE; i++) {
+                    let line = [];
+                    for (let j=0; j<SIZE; j++) {
+                        switch(direction) {
+                            case 0: line.push(board[i][j]); break;
+                            case 1: line.push(board[j][i]); break;
+                            case 2: line.push(board[i][SIZE-1-j]); break;
+                            case 3: line.push(board[SIZE-1-j][i]); break;
+                        }
+                    }
+                    // 压缩
+                    let filtered = line.filter(v => v !== 0);
+                    let newLine = [];
+                    for (let k=0; k<filtered.length; k++) {
+                        if (k+1 < filtered.length && filtered[k] === filtered[k+1]) {
+                            newLine.push(filtered[k]*2);
+                            score += filtered[k]*2;
+                            // 标记合并位置
+                            const pos = (direction === 0) ? i*SIZE + newLine.length-1 :
+                                        (direction === 1) ? (newLine.length-1)*SIZE + i :
+                                        (direction === 2) ? i*SIZE + (SIZE-1 - (newLine.length-1)) :
+                                        (SIZE-1-(newLine.length-1))*SIZE + i;
+                            mergedSet.add(pos);
+                            k++;
+                            moved = true;
+                        } else {
+                            newLine.push(filtered[k]);
+                        }
+                    }
+                    while (newLine.length < SIZE) newLine.push(0);
+                    // 写回
+                    for (let k=0; k<SIZE; k++) {
+                        const val = newLine[k];
+                        let r,c;
+                        switch(direction) {
+                            case 0: r=i; c=k; break;
+                            case 1: r=k; c=i; break;
+                            case 2: r=i; c=SIZE-1-k; break;
+                            case 3: r=SIZE-1-k; c=i; break;
+                        }
+                        board[r][c] = val;
+                        if (board[r][c] !== 0 && lastBoard[r][c] !== board[r][c]) {
+                            // 如果值变了，可能是合并也可能是移动
+                            if (lastBoard[r][c] !== 0 && lastBoard[r][c] !== board[r][c]) {
+                                // 合并
+                            }
+                            moved = true;
+                        }
+                    }
+                }
+
+                if (moved) {
+                    // 播放移动音效
+                    sfxMove();
+                    spawnTile();
+                    renderBoard();
+                    animateTiles(lastBoard, board, mergedSet);
+                    updateScoreUI();
+
+                    // 检查胜利
+                    if (checkWin() && !winAchieved) {
+                        winAchieved = true;
+                        setTimeout(()=>{
+                            showOverlay('win');
+                            sfxWin();
+                        }, 120);
+                    }
+                    // 检查结束
+                    if (checkEnd()) {
+                        gameOver = true;
+                        setTimeout(()=>{
+                            showOverlay('end');
+                            sfxLose();
+                        }, 200);
+                    }
+                }
+            }
+
+            // 覆盖层管理
+            function showOverlay(type) {
+                startOverlay.classList.remove('active');
+                endOverlay.classList.remove('active');
+                winOverlay.classList.remove('active');
+                if (type === 'start') startOverlay.classList.add('active');
+                else if (type === 'end') {
+                    endOverlay.classList.add('active');
+                    endScore.textContent = `得分: ${score}`;
+                    endTitle.textContent = gameOver ? '游戏结束' : '游戏结束';
+                } else if (type === 'win') winOverlay.classList.add('active');
+                currentOverlay = type;
+            }
+
+            // 新游戏
+            function newGame() {
+                board = Array.from({length:SIZE}, ()=>Array(SIZE).fill(0));
+                score = 0;
+                gameOver = false;
+                winAchieved = false;
+                lastBoard = null;
+                lastScore = 0;
+                spawnTile();
+                spawnTile();
+                renderBoard();
+                updateScoreUI();
+                showOverlay('none');
+                boardEl.parentElement.classList.remove('shake');
+            }
+
+            // 撤销
+            function undo() {
+                if (lastBoard) {
+                    board = lastBoard.map(row => [...row]);
+                    score = lastScore;
+                    renderBoard();
+                    updateScoreUI();
+                    lastBoard = null;
+                    sfxClick();
+                }
+            }
+
+            // 暂停切换
+            function togglePause() {
+                if (gameOver) return;
+                if (currentOverlay === 'none') {
+                    isPaused = true;
+                    showOverlay('start'); // 复用开始层做暂停？临时改文字
+                    document.querySelector('#startOverlay h2').textContent = '暂停';
+                    document.querySelector('#startOverlay p').textContent = '按 P 继续';
+                    document.querySelector('#startOverlay button').textContent = '继续';
+                } else if (currentOverlay === 'start' && document.querySelector('#startOverlay button').textContent === '继续') {
+                    isPaused = false;
+                    showOverlay('none');
+                }
+            }
+
+            // 事件绑定
+            document.getElementById('startBtn').addEventListener('click', ()=>{
+                sfxClick();
+                initAudio();
+                newGame();
+            });
+            document.getElementById('restartBtn').addEventListener('click', ()=>{
+                sfxClick();
+                newGame();
+            });
+            document.getElementById('continueBtn').addEventListener('click', ()=>{
+                sfxClick();
+                showOverlay('none');
+            });
+            document.getElementById('undoBtn').addEventListener('click', undo);
+            document.getElementById('pauseBtn').addEventListener('click', togglePause);
+            
+            // 键盘控制
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+                    togglePause();
+                    return;
+                }
+                if (currentOverlay !== 'none' && currentOverlay !== 'start' && currentOverlay !== 'end' && currentOverlay !== 'win') return;
+                if (isPaused) return;
+                switch(e.key) {
+                    case 'ArrowLeft': e.preventDefault(); move(0); break;
+                    case 'ArrowUp': e.preventDefault(); move(1); break;
+                    case 'ArrowRight': e.preventDefault(); move(2); break;
+                    case 'ArrowDown': e.preventDefault(); move(3); break;
+                    case 'a': case 'A': e.preventDefault(); move(0); break;
+                    case 'w': case 'W': e.preventDefault(); move(1); break;
+                    case 'd': case 'D': e.preventDefault(); move(2); break;
+                    case 's': case 'S': e.preventDefault(); move(3); break;
+                }
+            });
+
+            // 触摸滑动
+            let touchStartX, touchStartY;
+            boardEl.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                e.preventDefault();
+            }, {passive: false});
+            boardEl.addEventListener('touchend', (e) => {
+                if (!touchStartX) return;
+                const dx = e.changedTouches[0].clientX - touchStartX;
+                const dy = e.changedTouches[0].clientY - touchStartY;
+                const absX = Math.abs(dx), absY = Math.abs(dy);
+                if (Math.max(absX, absY) < 24) return;
+                if (absX > absY) move(dx > 0 ? 2 : 0);
+                else move(dy > 0 ? 3 : 1);
+                touchStartX = null;
+                touchStartY = null;
+                e.preventDefault();
+            }, {passive: false});
+
+            // 屏幕震动
+            function shakeScreen() {
+                wrapper.classList.add('shake');
+                setTimeout(()=>wrapper.classList.remove('shake'), 300);
+            }
+
+            // 粒子特效追加到移动合并
+            const originalSpawn = spawnTile;
+            // 简单处理：移动后随机粒子
+            const origMove = move;
+            // 包装移动来触发震动（仅当合并时）
+            // 在move内部已有，但为了简单，这里不覆盖了。
+
+            // 初始化开始界面
+            showOverlay('start');
+            board = Array.from({length:SIZE}, ()=>Array(SIZE).fill(0));
+            renderBoard();
+        })();
+    </script>
+</body>
+</html>

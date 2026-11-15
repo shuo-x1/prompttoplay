@@ -1,13 +1,18 @@
 require('dotenv').config();
 
-// ===== 启动前校验 =====
+const crypto = require('crypto');
+const { spawn } = require('child_process');
+
+// ===== 启动配置检查（缺配置只降级，不退出）=====
+// 没有 DEEPSEEK_API_KEY：仍然能启动，在线体验版可以用用户自己填的 Key 生成；
+// 没有 JWT_SECRET：随机生成一个（重启后旧 token 失效，仅影响登录态）。
 if (!process.env.DEEPSEEK_API_KEY) {
-  console.error('FATAL: DEEPSEEK_API_KEY environment variable is required');
-  process.exit(1);
+  console.warn('[warn] 未配置 DEEPSEEK_API_KEY：完整版的登录生成不可用，但 http://localhost:' +
+    (process.env.PORT || 3000) + '/demo 仍可试玩，也可在页面里填自己的 Key 生成。');
 }
 if (!process.env.JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET environment variable is required');
-  process.exit(1);
+  process.env.JWT_SECRET = crypto.randomBytes(32).toString('hex');
+  console.warn('[warn] 未配置 JWT_SECRET：已随机生成临时密钥（重启后需要重新登录）。');
 }
 
 const express = require('express');
@@ -18,6 +23,7 @@ const userRoutes = require('./routes/user');
 const gameRoutes = require('./routes/games');
 const paymentRoutes = require('./routes/payment');
 const shareRoutes = require('./routes/share');
+const demoRoutes = require('./routes/demo');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -93,6 +99,12 @@ app.use('/api/generate', genRateLimiter);
 app.use('/api/generate/iterate', genRateLimiter);
 
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ===== 在线体验版（web/）：纯静态页面 + 同源代理，不登录也能用 =====
+// 访问 http://localhost:3000/demo 即可；部署到 GitHub Pages 时只发布 web/ 目录。
+app.use('/demo', express.static(path.join(__dirname, 'web')));
+app.use('/api/demo', demoRoutes);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api', gameRoutes);
@@ -117,6 +129,21 @@ app.use((err, req, res, next) => {
   }
   res.status(500).json({ error: '服务器内部错误' });
 });
+
+// 双击「启动.cmd」时用它自动打开浏览器（PTP_OPEN_BROWSER=1）
+function openBrowser(url) {
+  const commands = {
+    win32: ['cmd', ['/c', 'start', '', url]],
+    darwin: ['open', [url]],
+    linux: ['xdg-open', [url]]
+  };
+  const [command, args] = commands[process.platform] || commands.linux;
+  try {
+    spawn(command, args, { detached: true, stdio: 'ignore' }).unref();
+  } catch (err) {
+    console.warn('[warn] 没能自动打开浏览器，请手动访问上面那个地址。');
+  }
+}
 
 // ===== 启动 =====
 initDb(async (err) => {
@@ -155,10 +182,15 @@ initDb(async (err) => {
     console.error('Cover fix failed (non-fatal):', coverErr.message);
   }
 
+// 双击「启动.cmd」时用它自动打开浏览器（PTP_OPEN_BROWSER=1）
   app.listen(PORT, () => {
-    console.log(`\n  🎮 PromptToPlay server running on http://localhost:${PORT}`);
-    console.log(`  🔧 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`\n  🎮 PromptToPlay 完整版: http://localhost:${PORT}`);
+    console.log(`  🕹️  在线体验版:      http://localhost:${PORT}/demo`);
+    console.log(`  🔧 健康检查:        http://localhost:${PORT}/api/health`);
     console.log(`  🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+    if (process.env.PTP_OPEN_BROWSER === '1') {
+      openBrowser(`http://localhost:${PORT}/demo/`);
+    }
   });
 });
 

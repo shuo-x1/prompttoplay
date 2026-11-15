@@ -1,0 +1,20 @@
+[
+  {
+    "title": "霓虹突围 · 太空射击",
+    "category": "shooting",
+    "description": "霓虹赛博风格射击，陨石+敌机+BOSS 战，连击倍率",
+    "file": "ai-shooter.html",
+    "bytes": 41935,
+    "seconds": "49.3",
+    "ok": true
+  },
+  {
+    "title": "像素勇者 · 横版闯关",
+    "category": "action",
+    "description": "像素风横版跳跃，金币收集、移动平台与关底 BOSS",
+    "file": "ai-platformer.html",
+    "bytes": 46962,
+    "seconds": "59.2",
+    "ok": true
+  }
+]

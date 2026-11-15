@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>记忆配对 · 翻牌</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 30%, #1a2a4a, #0b1520);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            touch-action: pan-y;
+            padding: 12px;
+        }
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background: rgba(20, 30, 50, 0.6);
+            backdrop-filter: blur(10px);
+            border-radius: 40px;
+            padding: 20px;
+            box-shadow: 0 25px 40px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 60px;
+            color: #cfe3ff;
+            font-weight: 600;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.5);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .stat-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .stat {
+            background: #1d2b42;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.4);
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+        }
+        .icon-btn {
+            background: #2b3f5e;
+            border: none;
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 30px;
+            font-size: 1.4rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 0 #0e1622;
+            transition: 0.1s ease;
+        }
+        .icon-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #0e1622;
+        }
+        .game-board {
+            display: grid;
+            gap: 10px;
+            padding: 6px;
+            justify-content: center;
+        }
+        .card {
+            aspect-ratio: 1 / 1;
+            background: transparent;
+            perspective: 1000px;
+            cursor: pointer;
+            border-radius: 16px;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d;
+            border-radius: 18px;
+        }
+        .card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+        .card-front {
+            background: linear-gradient(145deg, #2a3b5c, #1d2b42);
+            transform: rotateY(180deg);
+            font-size: clamp(2rem, 8vw, 3.6rem);
+            overflow: hidden;
+        }
+        .card-back {
+            background: linear-gradient(145deg, #3f5a85, #2a3d60);
+            border: 2px solid #7f9fd0;
+            color: #b8d0ff;
+            font-size: 2.2rem;
+            font-weight: bold;
+            text-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .card.matched .card-front {
+            background: #2a5a3a;
+            box-shadow: 0 0 20px #6fe08a;
+            transition: 0.3s;
+        }
+        .card.matched::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.2);
+            border-radius: 18px;
+            animation: glowPulse 1s infinite alternate;
+        }
+        @keyframes glowPulse {
+            0% {opacity: 0.3; box-shadow: 0 0 12px #8ae3a0;}
+            100% {opacity: 0.7; box-shadow: 0 0 24px #b6ffb0;}
+        }
+        .screen-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 8, 15, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.3s;
+        }
+        .screen-panel {
+            background: #1b283c;
+            border-radius: 40px;
+            padding: 30px 35px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid #3b5a7c;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+        }
+        .screen-panel h1 {
+            font-size: 2.2rem;
+            margin-bottom: 12px;
+            color: #d7e9ff;
+            text-shadow: 0 4px 10px #0f1b2a;
+        }
+        .screen-panel p {
+            color: #b4c7e0;
+            margin: 16px 0;
+            font-size: 1.1rem;
+        }
+        .menu-btn {
+            background: #3e5e86;
+            border: none;
+            color: white;
+            font-size: 1.3rem;
+            font-weight: bold;
+            padding: 12px 30px;
+            border-radius: 60px;
+            margin: 8px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #16212e;
+            transition: 0.1s ease;
+            letter-spacing: 1px;
+        }
+        .menu-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #16212e;
+        }
+        .difficulty-group {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin: 20px 0 10px;
+        }
+        .diff-btn {
+            background: #2e4765;
+            border: 2px solid #5b7ca0;
+            color: #e0eFFF;
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .diff-btn.selected {
+            background: #6a9fd8;
+            border-color: #b0d6ff;
+            color: #0b1622;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .particle-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 200;
+            overflow: hidden;
+        }
+        .particle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ffd966;
+            animation: particleFly 0.9s ease-out forwards;
+        }
+        @keyframes particleFly {
+            0% {opacity: 1; transform: scale(1) translate(0,0);}
+            100% {opacity: 0; transform: scale(0.2) translate(var(--dx), var(--dy));}
+        }
+        .shake {
+            animation: shakeAnim 0.3s linear;
+        }
+        @keyframes shakeAnim {
+            0% {transform: translate(0,0);}
+            25% {transform: translate(-3px, 2px);}
+            50% {transform: translate(3px, -2px);}
+            75% {transform: translate(-2px, -3px);}
+            100% {transform: translate(0,0);}
+        }
+        .virtual-joy {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 18px;
+            gap: 10px;
+            padding: 10px 5px;
+        }
+        .v-btn {
+            background: #2f4468;
+            border: none;
+            color: white;
+            font-size: 1.8rem;
+            padding: 8px 0;
+            border-radius: 40px;
+            flex: 1;
+            text-align: center;
+            box-shadow: 0 4px 0 #0c1727;
+            cursor: pointer;
+        }
+        .v-btn:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+        footer {
+            color: #6f86a5;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 16px;
+        }
+        @media (max-width: 500px) {
+            .header {justify-content: center;}
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="gameContainer">
+        <div class="header">
+            <div class="stat-box">
+                <div class="stat">⏱️ <span id="timer">0</span>s</div>
+                <div class="stat">👣 <span id="moves">0</span></div>
+                <div class="stat">🏆 <span id="best">0</span></div>
+            </div>
+            <div class="btn-group">
+                <button class="icon-btn" id="pauseBtn">⏸️</button>
+                <button class="icon-btn" id="restartBtn">🔄</button>
+            </div>
+        </div>
+        <div id="board" class="game-board"></div>
+        <div class="virtual-joy" id="touchControls">
+            <button class="v-btn" id="vPause">⏸️暂停</button>
+            <button class="v-btn" id="vRestart">🔄重开</button>
+        </div>
+        <footer>WASD / 滑动 · 空格翻转 ｜ P 暂停</footer>
+    </div>
+
+    <!-- 开始/结束覆盖层 -->
+    <div class="screen-overlay" id="startScreen">
+        <div class="screen-panel">
+            <h1>🧠 记忆配对</h1>
+            <p>翻出相同图案，用最少步数通关</p>
+            <div class="difficulty-group">
+                <button class="diff-btn" data-diff="easy">简单 4x3</button>
+                <button class="diff-btn selected" data-diff="medium">中等 4x4</button>
+                <button class="diff-btn" data-diff="hard">困难 6x4</button>
+            </div>
+            <button class="menu-btn" id="startBtn">开始游戏</button>
+            <p style="font-size:0.9rem; margin-top:10px;">✨ 最高分 <span id="bestScoreShow">0</span></p>
+        </div>
+    </div>
+
+    <div class="screen-overlay hidden" id="winScreen">
+        <div class="screen-panel">
+            <h1>🎉 完美通关！</h1>
+            <p id="winStats"></p>
+            <p>⭐ 新纪录！</p>
+            <button class="menu-btn" id="playAgainBtn">再来一局</button>
+            <button class="menu-btn" id="backMenuBtn">主菜单</button>
+        </div>
+    </div>
+
+    <div class="particle-container" id="particles"></div>
+
+    <script>
+        (function(){
+            // 核心状态
+            const container = document.getElementById('gameContainer');
+            const boardEl = document.getElementById('board');
+            const timerEl = document.getElementById('timer');
+            const movesEl = document.getElementById('moves');
+            const bestEl = document.getElementById('best');
+            const startScreen = document.getElementById('startScreen');
+            const winScreen = document.getElementById('winScreen');
+            const bestScoreShow = document.getElementById('bestScoreShow');
+            const winStats = document.getElementById('winStats');
+            const pauseBtn = document.getElementById('pauseBtn');
+            const restartBtn = document.getElementById('restartBtn');
+            const vPause = document.getElementById('vPause');
+            const vRestart = document.getElementById('vRestart');
+            const touchControls = document.getElementById('touchControls');
+
+            // 难度配置
+            const DIFF_CONFIG = {
+                easy: { rows: 3, cols: 4 },
+                medium: { rows: 4, cols: 4 },
+                hard: { rows: 4, cols: 6 }
+            };
+            const EMOJI_POOL = ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐸','🐙','🦋','🐞','🌻','🍎','🍇','🍉','🚗','⚽','🎸','⌚'];
+
+            let currentDifficulty = 'medium';
+            let cards = [];
+            let firstPick = null;
+            let secondPick = null;
+            let lockBoard = false;
+            let matchedPairs = 0;
+            let totalPairs = 0;
+            let moves = 0;
+            let timer = 0;
+            let timerInterval = null;
+            let gameActive = false;
+            let gamePaused = false;
+            let bestScore = parseInt(localStorage.getItem('memoryBest') || '0');
+            bestEl.textContent = bestScore;
+            bestScoreShow.textContent = bestScore;
+
+            // 音效
+            let audioCtx = null;
+            function getAudioCtx() {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                return audioCtx;
+            }
+            function playTone(freq, duration, type='sine', gainValue=0.2, when=0) {
+                const ctx = getAudioCtx();
+                if (ctx.state === 'suspended') ctx.resume();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(gainValue, ctx.currentTime + when);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + when + duration);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(ctx.currentTime + when);
+                osc.stop(ctx.currentTime + when + duration + 0.03);
+            }
+            function sfxFlip() { playTone(500, 0.12, 'triangle', 0.15); }
+            function sfxMatch() { playTone(700, 0.2, 'sine', 0.2); playTone(1100, 0.2, 'sine', 0.2, 0.1); }
+            function sfxFail() { playTone(250, 0.15, 'sawtooth', 0.1); playTone(180, 0.2, 'sawtooth', 0.1, 0.05); }
+            function sfxWin() { [600,800,1000,1200].forEach((f,i)=>playTone(f,0.25,'sine',0.2,i*0.1)); }
+
+            // 粒子特效
+            function spawnParticles(x, y, count=14) {
+                const particleBox = document.getElementById('particles');
+                for (let i=0; i<count; i++) {
+                    const p = document.createElement('div');
+                    p.className = 'particle';
+                    const angle = Math.random()*Math.PI*2;
+                    const dist = 40 + Math.random()*80;
+                    const dx = Math.cos(angle)*dist;
+                    const dy = Math.sin(angle)*dist;
+                    p.style.left = (x-6)+'px';
+                    p.style.top = (y-6)+'px';
+                    p.style.setProperty('--dx', dx+'px');
+                    p.style.setProperty('--dy', dy+'px');
+                    p.style.background = `hsl(${Math.random()*60+30}, 90%, 70%)`;
+                    particleBox.appendChild(p);
+                    setTimeout(()=>p.remove(), 900);
+                }
+            }
+            function shakeBoard() {
+                container.classList.add('shake');
+                setTimeout(()=>container.classList.remove('shake'), 300);
+            }
+
+            // 生成卡牌
+            function generateCards(diff) {
+                const { rows, cols } = DIFF_CONFIG[diff];
+                const pairCount = (rows * cols) / 2;
+                const emojis = EMOJI_POOL.slice(0, pairCount);
+                const deck = [...emojis, ...emojis];
+                // 随机打乱
+                for (let i=deck.length-1; i>0; i--) {
+                    const j = Math.floor(Math.random()*(i+1));
+                    [deck[i], deck[j]] = [deck[j], deck[i]];
+                }
+                return deck.map((emoji, idx) => ({
+                    id: idx,
+                    emoji,
+                    matched: false,
+                    flipped: false
+                }));
+            }
+
+            // 渲染
+            function renderBoard() {
+                const { rows, cols } = DIFF_CONFIG[currentDifficulty];
+                boardEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                boardEl.innerHTML = '';
+                cards.forEach((card, index) => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'card';
+                    if (card.flipped) cardDiv.classList.add('flipped');
+                    if (card.matched) cardDiv.classList.add('matched');
+                    cardDiv.dataset.index = index;
+                    cardDiv.innerHTML = `
+                        <div class="card-inner">
+                            <div class="card-front">${card.emoji}</div>
+                            <div class="card-back">?</div>
+                        </div>
+                    `;
+                    cardDiv.addEventListener('click', (e) => onCardClick(index, e));
+                    boardEl.appendChild(cardDiv);
+                });
+            }
+
+            // 点击逻辑
+            function onCardClick(index) {
+                if (!gameActive || gamePaused || lockBoard) return;
+                const card = cards[index];
+                if (card.matched || card.flipped) return;
+                
+                // 翻转
+                card.flipped = true;
+                sfxFlip();
+                renderBoard();
+
+                if (!firstPick) {
+                    firstPick = card;
+                    return;
+                }
+                // 第二张
+                if (firstPick && !secondPick) {
+                    secondPick = card;
+                    moves++;
+                    movesEl.textContent = moves;
+                    lockBoard = true;
+
+                    // 配对检查
+                    if (firstPick.emoji === secondPick.emoji) {
+                        // 配对成功
+                        firstPick.matched = true;
+                        secondPick.matched = true;
+                        matchedPairs++;
+                        sfxMatch();
+                        // 粒子从两张卡中心发出
+                        const boardRect = boardEl.getBoundingClientRect();
+                        const cardsEls = boardEl.children;
+                        const idx1 = cards.findIndex(c=>c.id===firstPick.id);
+                        const idx2 = cards.findIndex(c=>c.id===secondPick.id);
+                        if (cardsEls[idx1] && cardsEls[idx2]) {
+                            const r1 = cardsEls[idx1].getBoundingClientRect();
+                            const r2 = cardsEls[idx2].getBoundingClientRect();
+                            spawnParticles((r1.left+r1.right)/2, (r1.top+r1.bottom)/2, 10);
+                            spawnParticles((r2.left+r2.right)/2, (r2.top+r2.bottom)/2, 10);
+                        }
+                        renderBoard();
+                        firstPick = null;
+                        secondPick = null;
+                        lockBoard = false;
+
+                        if (matchedPairs === totalPairs) {
+                            // 胜利
+                            gameActive = false;
+                            clearInterval(timerInterval);
+                            sfxWin();
+                            showWinScreen();
+                            // 保存最佳
+                            if (bestScore === 0 || timer < bestScore) {
+                                bestScore = timer;
+                                localStorage.setItem('memoryBest', bestScore);
+                                bestEl.textContent = bestScore;
+                                bestScoreShow.textContent = bestScore;
+                            }
+                        }
+                    } else {
+                        // 配对失败
+                        sfxFail();
+                        shakeBoard();
+                        setTimeout(() => {
+                            firstPick.flipped = false;
+                            secondPick.flipped = false;
+                            firstPick = null;
+                            secondPick = null;
+                            lockBoard = false;
+                            renderBoard();
+                        }, 800);
+                    }
+                }
+            }
+
+            // 计时器
+            function startTimer() {
+                clearInterval(timerInterval);
+                timer = 0;
+                timerEl.textContent = '0';
+                timerInterval = setInterval(() => {
+                    if (gameActive && !gamePaused) {
+                        timer++;
+                        timerEl.textContent = timer;
+                    }
+                }, 1000);
+            }
+
+            // 难度选择
+            document.querySelectorAll('.diff-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    currentDifficulty = btn.dataset.diff;
+                });
+            });
+
+            // 开始游戏
+            function startGame(diff = currentDifficulty) {
+                currentDifficulty = diff;
+                // 重置状态
+                cards = generateCards(currentDifficulty);
+                firstPick = null;
+                secondPick = null;
+                lockBoard = false;
+                matchedPairs = 0;
+                moves = 0;
+                totalPairs = cards.length / 2;
+                movesEl.textContent = '0';
+                timerEl.textContent = '0';
+                gameActive = true;
+                gamePaused = false;
+                pauseBtn.textContent = '⏸️';
+                startTimer();
+                renderBoard();
+                startScreen.classList.add('hidden');
+                winScreen.classList.add('hidden');
+            }
+
+            // 显示胜利
+            function showWinScreen() {
+                winStats.textContent = `👣 步数 ${moves} ⏱️ 时间 ${timer}s · 难度 ${currentDifficulty}`;
+                winScreen.classList.remove('hidden');
+            }
+
+            // 暂停切换
+            function togglePause() {
+                if (!gameActive) return;
+                gamePaused = !gamePaused;
+                pauseBtn.textContent = gamePaused ? '▶️' : '⏸️';
+                if (!gamePaused && matchedPairs === totalPairs) return;
+            }
+
+            // 重开
+            function restartGame() {
+                startGame(currentDifficulty);
+            }
+
+            // 事件绑定
+            document.getElementById('startBtn').addEventListener('click', () => {
+                startGame(currentDifficulty);
+            });
+            document.getElementById('playAgainBtn').addEventListener('click', () => {
+                startGame(currentDifficulty);
+            });
+            document.getElementById('backMenuBtn').addEventListener('click', () => {
+                winScreen.classList.add('hidden');
+                startScreen.classList.remove('hidden');
+                gameActive = false;
+                clearInterval(timerInterval);
+            });
+            pauseBtn.addEventListener('click', togglePause);
+            restartBtn.addEventListener('click', restartGame);
+            vPause.addEventListener('click', togglePause);
+            vRestart.addEventListener('click', restartGame);
+
+            // 键盘控制
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+                    e.preventDefault();
+                    togglePause();
+                }
+                if (e.key === ' ') {
+                    e.preventDefault(); // 空格翻转? 这里不绑定
+                }
+                if (e.key === 'r' || e.key === 'R') restartGame();
+            });
+
+            // 触摸翻牌已包含，手势忽略，按钮够了
+
+            // 初始化展示
+            startScreen.classList.remove('hidden');
+            gameActive = false;
+            // 初始预渲染简单板子？但等开始后渲染
+            // 展示默认难度
+            bestEl.textContent = bestScore;
+        })();
+    </script>
+</body>
+</html>
