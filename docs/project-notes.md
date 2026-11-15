@@ -38,7 +38,14 @@
 - 本地跑完整版时自动探测 `/api/demo/health`，切到同源代理，Key 留在服务端
 - 生成结果在 `sandbox` iframe 中渲染，并注入内存版 `localStorage` 兜底，防止游戏因沙箱抛异常白屏
 
-**④ 让别人能直接跑起来**
+**④ 安全评审**（`docs/security-checklist.md`）
+
+- 把「模型产出的代码」当不可信脚本：沙箱 iframe 运行、不给 `allow-same-origin`
+- 修掉一个真实隐患：原来 `sandbox="allow-scripts allow-same-origin"`，生成代码可以读走 `localStorage` 里的登录 token → 已改
+- 修掉存储型 XSS：首页热门游戏用 `innerHTML` 直接拼 `game.title`（标题来自用户 prompt）→ 统一 `escapeHtml`（含引号）
+- 逐项确认：密钥不进仓库、SQL 全参数化、改/删游戏校验 owner、`npm audit` 结果记录在案
+
+**⑤ 让别人能直接跑起来**
 
 - 缺 `DEEPSEEK_API_KEY` 不再 `process.exit(1)`，降级启动
 - 新增 `/api/demo/generate`：免登录、不写库、不扣配额、限流 5 次/分钟

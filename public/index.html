@@ -107,7 +107,7 @@
           <button id="share-btn" class="btn btn-outline">📤 分享</button>
         </div>
       </div>
-      <iframe id="game-iframe" sandbox="allow-scripts allow-same-origin" style="width:100%;height:500px;border:1px solid #ddd;border-radius:8px;"></iframe>
+      <iframe id="game-iframe" sandbox="allow-scripts allow-pointer-lock allow-popups allow-modals" style="width:100%;height:500px;border:1px solid #ddd;border-radius:8px;"></iframe>
     </section>
 
     <section class="hot-games-section" id="hot-games-section">
@@ -165,7 +165,7 @@
     function showGame(html) {
       document.getElementById('game-output').style.display = 'block';
       const iframe = document.getElementById('game-iframe');
-      iframe.srcdoc = html;
+      renderGameFrame(iframe, html);
       window.scrollTo({ top: document.getElementById('game-output').offsetTop - 80, behavior: 'smooth' });
     }
 
@@ -259,8 +259,8 @@
               ${coverImg}
             </div>
             <div class="game-card-info">
-              <h3>${game.title || '未命名游戏'}</h3>
-              <p class="game-card-desc">${(game.description || '').substring(0, 40)}${(game.description || '').length > 40 ? '...' : ''}</p>
+              <h3>${escapeHtml(game.title || '未命名游戏')}</h3>
+              <p class="game-card-desc">${escapeHtml((game.description || '').substring(0, 40))}${(game.description || '').length > 40 ? '...' : ''}</p>
               <div style="margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                 <span class="category-badge">${categoryNames[game.category] || game.category}</span>
                 ${styleTag}

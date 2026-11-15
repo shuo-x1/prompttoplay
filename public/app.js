@@ -1,5 +1,33 @@
-async function apiCall(url, method = 'GET', body = null) {
-  const opts = {
+// ===== 安全相关的公共工具（所有页面共用）=====
+
+/** 把用户输入 / 模型产出的文本安全地放进 HTML（文本和属性值都适用） */
+function escapeHtml(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+}
+
+/**
+ * 生成的游戏代码属于不可信内容：放进封闭沙箱（不给 allow-same-origin）。
+ * 否则它和页面同源，能直接读 localStorage 里的登录 token，等于把账号交出去。
+ */
+var GAME_SANDBOX = 'allow-scripts allow-pointer-lock allow-popups allow-modals';
+
+/** 沙箱里拿不到 localStorage，补一个内存版，避免游戏写最高分时抛异常白屏 */
+var GAME_STORAGE_SHIM = '<script>(function(){try{window.localStorage.getItem("__probe__");}catch(e){' +
+  'var store={};var api={getItem:function(k){return Object.prototype.hasOwnProperty.call(store,k)?store[k]:null;},' +
+  'setItem:function(k,v){store[k]=String(v);},removeItem:function(k){delete store[k];},clear:function(){store={};},' +
+  'key:function(i){return Object.keys(store)[i]||null;},get length(){return Object.keys(store).length;}};' +
+  'try{Object.defineProperty(window,"localStorage",{configurable:true,value:api});}catch(_){}}})();<\/script>';
+
+/** 统一的游戏预览入口：设置沙箱属性 + 注入兜底 + 写入 srcdoc */
+function renderGameFrame(iframe, html) {
+  if (!iframe) return;
+  iframe.setAttribute('sandbox', GAME_SANDBOX);
+  iframe.srcdoc = GAME_STORAGE_SHIM + String(html || '');
+}
+
+async function apiCall(url, method = 'GET', body = null) {  const opts = {
     method,
     headers: { 'Content-Type': 'application/json' }
   };
@@ -250,7 +278,7 @@ function buyRemoveWatermark(event) {
       const data = await apiCall('/api/games/' + gameId + '/remove-watermark', 'POST');
       showModal('成功', `水印已去除！剩余积分: ${data.remaining}`);
       const iframe = document.getElementById('game-preview');
-      if (iframe && data.html) { iframe.srcdoc = data.html; }
+      if (iframe && data.html) { renderGameFrame(iframe, data.html); }
     } catch (err) {
       showModal('积分不足', err.message + '\n\n请先到积分商城充值积分。', [
         { id: 'open-shop', label: '去充值', cls: 'btn-primary', onClick: showCreditShop },

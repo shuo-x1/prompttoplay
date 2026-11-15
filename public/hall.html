@@ -155,11 +155,7 @@
       `}).join('');
     }
 
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str || '';
-      return div.innerHTML;
-    }
+    // escapeHtml 由 app.js 统一提供（同时转义引号，放进属性值里也安全）
 
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', () => {

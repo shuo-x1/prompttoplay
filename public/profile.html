@@ -165,11 +165,7 @@
       `).join('');
     }
 
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str || '';
-      return div.innerHTML;
-    }
+    // escapeHtml 由 app.js 统一提供
 
     document.getElementById('copy-invite-btn').addEventListener('click', () => {
       const link = document.getElementById('invite-link').textContent;

@@ -44,7 +44,7 @@
           <button id="remix-cancel" class="btn btn-text">取消</button>
         </div>
         <div class="game-frame-container">
-          <iframe id="game-iframe" sandbox="allow-scripts allow-same-origin" style="width:100%;height:600px;border:none;border-radius:8px;"></iframe>
+          <iframe id="game-iframe" sandbox="allow-scripts allow-pointer-lock allow-popups allow-modals" style="width:100%;height:600px;border:none;border-radius:8px;"></iframe>
         </div>
       </div>
     </section>
@@ -91,7 +91,7 @@
       document.getElementById('game-category').textContent = categoryNames[game.category] || game.category;
       document.getElementById('game-plays').textContent = `🎮 ${game.plays || 0} 次游玩 · 👍 ${game.likes || 0}`;
       document.getElementById('like-count').textContent = game.likes || 0;
-      document.getElementById('game-iframe').srcdoc = game.html_code;
+      renderGameFrame(document.getElementById('game-iframe'), game.html_code);
       window._currentGameId = game.id;
       updateActionButtons(game);
       checkLiked(game.id);

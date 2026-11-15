@@ -93,6 +93,15 @@ cp .env.example .env
    # 11/11 个游戏通过检查
    ```
 
+## 🔒 安全：AI 生成的代码怎么隔离
+
+生成结果本质是「不可信代码」，所以：
+
+- 一律在 `sandbox` iframe 中运行，**不给 `allow-same-origin`**（同时给 `allow-scripts` + `allow-same-origin` 会让生成代码读走 localStorage 里的登录 token）
+- 进入 `innerHTML` 的用户内容（游戏标题来自用户 prompt）统一 `escapeHtml`，含引号
+- SQL 全参数化；免登录的 `/api/demo/generate` 不写库、不扣配额并单独限流
+- 完整清单与本次修复记录：[docs/security-checklist.md](docs/security-checklist.md)
+
 ## 📁 项目结构
 
 ```
