@@ -11,7 +11,7 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![DeepSeek](https://img.shields.io/badge/AI-DeepSeek_API-blue.svg)](https://platform.deepseek.com/)
 
-[在线试玩](#-在线体验) · [30 秒跑起来](#-30-秒跑起来本地) · [为什么之前跑不起来](#-为什么之前跑不起来已修) · [验证清单](#-验证清单照着做就能确认) · [项目结构](#-项目结构) · [技术栈](#-技术栈)
+[在线试玩](#-在线体验) · [30 秒跑起来](#-30-秒跑起来本地) · [项目结构](#-项目结构) · [技术栈](#-技术栈)
 
 </div>
 
@@ -60,39 +60,6 @@ cp .env.example .env
 # 然后用编辑器把 DEEPSEEK_API_KEY 填进去
 ```
 
-## 🔧 为什么之前跑不起来（已修）
-
-之前 README 的四步在任何一台干净机器上都很容易卡住，逐条修了：
-
-| 坑 | 现象 | 现在 |
-| --- | --- | --- |
-| `cp .env.example .env` | Windows 的 PowerShell / cmd 没有 `cp` 命令，第一步就报错 | README 按系统给命令；`启动.cmd` 完全不需要这一步 |
-| 没配 `DEEPSEEK_API_KEY` | `server.js` 直接 `FATAL` + `process.exit(1)`，服务起不来 | 改成只打印警告并降级启动，体验版照样能用（Key 也可以由前端传） |
-| 只想要个 demo 却要注册账号 | 生成接口挂了 JWT 校验，必须先注册登录 | 新增 `/api/demo/generate`：不登录、不写库、不扣配额，专门给体验页用 |
-| Node 版本太老 | Node 16 没有全局 `fetch`，装 `sql.js` / 起服务就报错 | 启动脚本先检查版本；README 写明 Node ≥ 18 |
-| 3000 端口被别的项目占用 | `EADDRINUSE` | `PORT=3100 npm start` 换端口 |
-
-## ✅ 验证清单（照着做就能确认）
-
-1. **服务活着**
-   ```bash
-   curl http://localhost:3000/api/health
-   # {"status":"ok","uptime":2.1,"timestamp":"...","version":"1.0.0"}
-   ```
-2. **体验版代理可用**
-   ```bash
-   curl http://localhost:3000/api/demo/health
-   # {"ok":true,"serverKey":false,"model":"deepseek-chat"}
-   ```
-3. **打开 http://localhost:3000/demo**，画廊里有 11 个游戏（9 个内置 + 2 个 DeepSeek 现场生成的示例），随便点一个：有开始界面、能操作、有音效、有暂停和结束结算。
-4. **实时生成**：切到「实时生成」页签 → 填 Key → 输入「一个躲避陨石、收集道具的太空射击游戏」→ 状态栏会显示“正在生成…已收 xx KB”，完成后右侧出现新游戏；点「下载 HTML」，双击下载的文件应该能独立运行。
-5. **完整版接口**：`curl http://localhost:3000/api/games` 返回 9 条内置游戏（JSON）。
-6. **示例游戏批量自检**（不用开浏览器就能挡住“生成被截断 / 括号没闭合”）：
-   ```bash
-   npm run check-demos
-   # 11/11 个游戏通过检查
-   ```
-
 ## 🔒 安全：AI 生成的代码怎么隔离
 
 生成结果本质是「不可信代码」，所以：
@@ -135,7 +102,7 @@ prompttoplay/
    - 长游戏会撞 `max_tokens=16000` 被截断 → 现在会检测 `finish_reason === 'length'` 并明确报错，同时把提示词改成「必须完整写到 `</html>`」；
    - 浏览器的沙箱 iframe 里 `localStorage` 不可用会让游戏直接崩 → 在预览页注入内存版兜底；
    - 缺 Key 就退出、必须先注册才能试用 → 拆出 `/api/demo/generate` 免登录通道。
-5. **每个改动都跑一遍验证清单**（见上一节），不靠“看起来没问题”。
+5. **每个改动都跑一遍验证**（健康检查、示例能玩、生成链路、`npm run check-demos`），不靠“看起来没问题”。
 
 ## ✨ 功能特性
 
