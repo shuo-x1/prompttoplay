@@ -11,6 +11,7 @@
     "seed": "node -e \"require('./scripts/seed-games').seedGames()\"",
     "export-demos": "node scripts/export-demos.js",
     "check-demos": "node scripts/check-demos.js",
+    "deploy": "git subtree push --prefix web origin gh-pages",
     "health": "curl -s http://localhost:3000/api/health"
   },
   "keywords": [

@@ -178,7 +178,8 @@ prompttoplay/
 
 ## 📦 部署
 
-- **体验版（web/）**：纯静态，推到 GitHub 后开启 Pages（Settings → Pages → Source 选 `GitHub Actions`，仓库自带 `deploy-pages` 工作流），或直接丢到任何静态托管（Vercel / Netlify / 对象存储）。
+- **体验版（web/）**：已发布在 GitHub Pages → <https://shuo-x1.github.io/prompttoplay/>，发布源是 `gh-pages` 分支（内容就是 `web/`，不要直接改它）。改完 `web/` 后运行 `npm run deploy`（等价于 `git subtree push --prefix web origin gh-pages`）即可更新；也可以把 `web/` 丢到任何静态托管（Vercel / Netlify / 对象存储）。
+  > Pages 只能托管静态文件：体验版里的实时生成是浏览器直连 DeepSeek，访问者要自己填 Key。想让访问者**不用填 Key** 就能生成，需要把完整版部署到 Zeabur / Fly（Key 留在服务端）。
 - **完整版**：见 [DEPLOY.md](./DEPLOY.md)，含 Zeabur、Fly.io、Docker、内网穿透四种方案；也提供 `deploy-zeabur.bat` / `deploy-fly.bat` 一键脚本。
 
 ## 🛠 技术栈
